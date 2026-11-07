@@ -62,7 +62,14 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("Click and drag to use the stylus.\nNo 3DS video is displayed here.").foregroundStyle(.secondary)
                             Text("Controller Input").font(.headline)
-                            Text(client.pressedSources.sorted().map { client.sourceLabel($0) }.joined(separator: " · ").isEmpty ? "—" : client.pressedSources.sorted().map { client.sourceLabel($0) }.joined(separator: " · "))
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 8) {
+                                    if client.pressedSources.isEmpty { Text("—") }
+                                    ForEach(client.pressedSources.sorted(), id: \.self) { source in
+                                        ControllerButtonLabel(client: client, source: source)
+                                    }
+                                }
+                            }.frame(height: 24)
                             Text("3DS Output").font(.headline)
                             Text(client.pressed.sorted().joined(separator: " · ").isEmpty ? "—" : client.pressed.sorted().joined(separator: " · "))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -77,11 +84,7 @@ struct ContentView: View {
                         ForEach(Client.targets, id: \.self) { target in
                             Picker(target, selection: Binding(get: { client.mapping[target] ?? "None" }, set: { client.mapping[target] = $0; client.save() })) {
                                 ForEach(Client.sources, id: \.self) { source in
-                                    if let symbol = client.sourceSymbol(source), NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil {
-                                        Label(client.sourceLabel(source), systemImage: symbol).tag(source)
-                                    } else {
-                                        Text(client.sourceLabel(source) + (client.currentController != nil && !client.sourceIsAvailable(source) ? " (Unavailable)" : "")).tag(source)
-                                    }
+                                    ControllerButtonLabel(client: client, source: source).tag(source)
                                 }
                             }
                         }
@@ -121,6 +124,23 @@ struct ContentView: View {
         }.padding(24).frame(minWidth: 720, minHeight: 620)
             .onChange(of: client.layoutChoice) { _ in client.save() }
             .onChange(of: client.invertY) { _ in client.save() }
+    }
+}
+
+struct ControllerButtonLabel: View {
+    @ObservedObject var client: Client
+    let source: String
+
+    var body: some View {
+        let name = client.sourceLabel(source)
+        if let symbol = client.sourceSymbol(source),
+           NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil {
+            Image(systemName: symbol)
+                .accessibilityLabel(Text(name))
+                .help(name)
+        } else {
+            Text(name + (client.currentController != nil && !client.sourceIsAvailable(source) ? " (Unavailable)" : ""))
+        }
     }
 }
 
