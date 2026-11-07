@@ -165,6 +165,7 @@ import InputCore
         }
     }
     private var timer: Timer?
+    private var sendingActivity: NSObjectProtocol?
     private var observers: [NSObjectProtocol] = []
     static let targets = ["A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L", "X", "Y", "ZL", "ZR", "Home", "Power"]
     static let sources = ["None", "South", "East", "West", "North", "L1", "R1", "L2", "R2", "Menu", "Options", "L3", "R3", "ControllerHome", "Capture", "↑", "↓", "←", "→"]
@@ -174,6 +175,8 @@ import InputCore
     private let controllerProvider: () -> [GCController]
     private let socketFactory: () throws -> Int32
     init(preferences: UserDefaults = .standard, controllerProvider: @escaping () -> [GCController] = { GCController.controllers() }, socketFactory: @escaping () throws -> Int32 = UDPSocket.make) {
+        // Continue receiving controller events when another app has focus.
+        GCController.shouldMonitorBackgroundEvents = true
         self.preferences = preferences
         self.controllerProvider = controllerProvider
         self.socketFactory = socketFactory
@@ -241,11 +244,20 @@ import InputCore
             let message = String(cString: strerror(errno))
             stop(); status = "Network error: \(message)"; return
         }
+        // Prevent App Nap from throttling the send timer while hidden or unfocused.
+        sendingActivity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Redirect controller input to Nintendo 3DS"
+        )
         address = ip; save(); sending = true; status = "Sending to \(ip):4950 · \(sendRate) Hz"
         scheduleInputTimer()
         tick()
     }
     func stop() {
+        if let sendingActivity {
+            ProcessInfo.processInfo.endActivity(sendingActivity)
+            self.sendingActivity = nil
+        }
         for task in releaseTasks.values { task.cancel() }
         releaseTasks.removeAll()
         if powerAction != nil { powerAction = nil }
