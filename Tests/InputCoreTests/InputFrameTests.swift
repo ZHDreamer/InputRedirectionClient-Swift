@@ -12,6 +12,19 @@ final class InputFrameTests: XCTestCase {
         var frame = InputFrame(); frame.buttons = 1 | (1 << 11); frame.zl = true; frame.zr = true; frame.home = true; frame.touch = (320, 240)
         XCTAssertEqual(words(frame), [0x7fe, 0x01ffffff, 0x7ff7ff, 0x80800681, 1])
     }
+    func testPowerActionsAndRelease() {
+        var frame = InputFrame()
+        frame.power = true
+        XCTAssertEqual(words(frame)[4], 2)
+        frame.power = false; frame.powerLong = true
+        XCTAssertEqual(words(frame)[4], 4)
+        frame.home = true; frame.power = true
+        XCTAssertEqual(words(frame)[4], 7)
+        frame.home = false; frame.power = false; frame.powerLong = false
+        XCTAssertEqual(words(frame)[4], 0)
+        XCTAssertEqual(frame.encoded().count, 20)
+    }
+
     func testStickRangeAndRotation() {
         var frame = InputFrame(); frame.leftX = 1; frame.leftY = -1; frame.rightX = 1; frame.rightY = 1
         XCTAssertEqual(words(frame)[2], UInt32(4095))

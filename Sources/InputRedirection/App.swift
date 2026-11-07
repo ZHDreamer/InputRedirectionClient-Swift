@@ -73,9 +73,20 @@ struct ContentView: View {
                             Text("3DS Output").font(.headline)
                             Text(client.pressed.sorted().joined(separator: " · ").isEmpty ? "—" : client.pressed.sorted().joined(separator: " · "))
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Text("HOME").padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-                                .gesture(DragGesture(minimumDistance: 0).onChanged { _ in client.home = true }.onEnded { _ in client.home = false })
-                                .help("Hold to send HOME")
+                            HStack(spacing: 10) {
+                                Button("HOME") {}
+                                    .simultaneousGesture(DragGesture(minimumDistance: 0)
+                                        .onChanged { _ in client.home = true }
+                                        .onEnded { _ in client.home = false })
+                                    .help("Hold to send HOME")
+                                    .disabled(!client.sending)
+                                Button("Power") { client.triggerPower(longPress: false) }
+                                    .help("Send a power press")
+                                    .disabled(!client.sending || client.powerAction != nil)
+                                Button("Power (Long)") { client.triggerPower(longPress: true) }
+                                    .help("Send a long power press")
+                                    .disabled(!client.sending || client.powerAction != nil)
+                            }
                         }
                     }
                 }.padding().tabItem { Label("Input", systemImage: "hand.draw") }

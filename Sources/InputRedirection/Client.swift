@@ -21,7 +21,7 @@ import InputCore
         get { defaultMapping.merging(mappingOverrides) { _, custom in custom } }
         set {
             let defaults = defaultMapping
-            mappingOverrides = newValue.filter { defaults[$0.key] != $0.value }
+            mappingOverrides = newValue.filter { Self.targets.contains($0.key) && defaults[$0.key] != $0.value }
             updatePreview()
         }
     }
@@ -123,6 +123,23 @@ import InputCore
     }
     var touch: (Double, Double)?
     var home = false
+    enum PowerAction { case press, longPress }
+    @Published private(set) var powerAction: PowerAction?
+    private var powerReleaseTask: Task<Void, Never>?
+
+    func triggerPower(longPress: Bool) {
+        guard sending else { return }
+        powerReleaseTask?.cancel()
+        powerAction = longPress ? .longPress : .press
+        tick()
+        powerReleaseTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(nanoseconds: 150_000_000) }
+            catch { return }
+            self?.powerAction = nil
+            self?.powerReleaseTask = nil
+            self?.tick()
+        }
+    }
     private var socketFD: Int32 = -1
     @Published var sendRate = 120 {
         didSet {
@@ -134,7 +151,7 @@ import InputCore
     }
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
-    static let targets = ["A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L", "X", "Y", "ZL", "ZR", "Home"]
+    static let targets = ["A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L", "X", "Y", "ZL", "ZR", "Home", "Power"]
     static let sources = ["None", "South", "East", "West", "North", "L1", "R1", "L2", "R2", "Menu", "Options", "L3", "R3", "ControllerHome", "Capture", "↑", "↓", "←", "→"]
 
 
@@ -168,6 +185,7 @@ import InputCore
             mappingOverrides = migrated.filter { ControllerLayout.legacyDefaults[$0.key] != $0.value }
             preferences.set(mappingOverrides, forKey: "mappingOverrides")
         }
+        mappingOverrides = mappingOverrides.filter { Self.targets.contains($0.key) }
         refresh()
     }
     private func scheduleInputTimer() {
@@ -213,6 +231,9 @@ import InputCore
         tick()
     }
     func stop() {
+        powerReleaseTask?.cancel()
+        powerReleaseTask = nil
+        if powerAction != nil { powerAction = nil }
         timer?.invalidate()
         timer = nil
         if socketFD >= 0 {
@@ -251,6 +272,8 @@ import InputCore
         func active(_ target: String) -> Bool { values[currentMapping[target] ?? "None"] ?? false }
         updatePreview(values: values, currentMapping: currentMapping)
         for (bit, target) in Self.targets.prefix(12).enumerated() where active(target) { state.buttons |= 1 << bit }
+        state.power = active("Power") || powerAction == .press
+        state.powerLong = powerAction == .longPress
         state.zl = active("ZL"); state.zr = active("ZR"); state.home = home || active("Home"); state.touch = touch
         let data = state.encoded()
         let sent = data.withUnsafeBytes { Darwin.send(socketFD, $0.baseAddress, $0.count, 0) }

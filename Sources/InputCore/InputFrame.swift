@@ -7,6 +7,7 @@ public struct InputFrame {
     public var zl = false, zr = false
     public var touch: (Double, Double)?
     public var home = false
+    public var power = false, powerLong = false
     public init() {}
 
     public func encoded() -> Data {
@@ -26,8 +27,9 @@ public struct InputFrame {
         if let (x, y) = touch {
             screen = 0x01000000 | bounded(x / 320 * 4095, 4095) | (bounded(y / 240 * 4095, 4095) << 12)
         }
+        let interfaceButtons: UInt32 = (home ? 1 : 0) | (power ? 2 : 0) | (powerLong ? 4 : 0)
         var data = Data()
-        for word in [0xfff & ~buttons, screen, circle, cpp, home ? 1 : 0] {
+        for word in [0xfff & ~buttons, screen, circle, cpp, interfaceButtons] {
             var little = word.littleEndian
             withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
         }

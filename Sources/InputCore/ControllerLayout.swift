@@ -59,6 +59,7 @@ public enum ControllerLayout: String, CaseIterable {
 
     public func defaultMapping(faceLegends: [String: String] = [:]) -> [String: String] {
         var result = Self.legacyDefaults
+        result["Power"] = "None"
         let positions = ["East", "South", "North", "West"]
         let targets = ["A", "B", "X", "Y"]
         let legends: [String]
