@@ -15,3 +15,10 @@
 - Use `chore: initial commit` for the initial repository commit.
 - When creating Git commits, always follow these conventions.
 - Do not create Git commits unless explicitly requested.
+
+## Pre-commit Formatting
+
+- Run `./scripts/install-hooks.sh` after cloning to enable the repository hooks.
+- The pre-commit hook formats staged `.swift` files using `swift-format` and the staged `.swift-format` configuration.
+- Unstaged edits are preserved. If a file is partially staged, only its staged content is formatted.
+- The hook requires Python 3 and `swift-format` (available through Xcode's `xcrun` on macOS).
