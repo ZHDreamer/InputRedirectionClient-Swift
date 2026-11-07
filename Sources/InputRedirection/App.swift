@@ -1,0 +1,155 @@
+import SwiftUI
+import AppKit
+import InputCore
+
+@main struct InputRedirectionApp: App {
+    @StateObject private var client = Client()
+    var body: some Scene {
+        WindowGroup {
+            ContentView(client: client)
+                .onAppear { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true) }
+        }
+        .defaultSize(width: 760, height: 650)
+    }
+}
+
+struct ContentView: View {
+    @ObservedObject var client: Client
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.tint)
+                VStack(alignment: .leading) {
+                    Text("Input Redirection").font(.title.bold())
+                    Text("macOS → Nintendo 3DS").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(client.sending ? "Sending" : "Idle").font(.caption.bold())
+                    .padding(8).background(client.sending ? Color.green.opacity(0.15) : Color.gray.opacity(0.15), in: Capsule())
+            }
+            GroupBox("3DS Network") {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        TextField("3DS IPv4 address", text: $client.address).textFieldStyle(.roundedBorder).disabled(client.sending)
+                        Button(client.sending ? "Stop" : "Start Sending") { client.sending ? client.stop() : client.start() }
+                            .buttonStyle(.borderedProminent)
+                    }
+                    Text(client.status).font(.callout).textSelection(.enabled)
+                    Text("UDP has no connection acknowledgment. Verify input on your 3DS.").font(.caption).foregroundStyle(.secondary)
+                }.padding(6)
+            }
+            HStack {
+                Picker("Controller", selection: $client.selected) {
+                    if client.controllers.isEmpty { Text("Connect a controller via Bluetooth or USB").tag(0) }
+                    ForEach(Array(client.controllers.enumerated()), id: \.offset) { index, controller in
+                        Text("\(controller.vendorName ?? "Game Controller") #\(index + 1)").tag(index)
+                    }
+                }
+                Button { client.refresh() } label: { Image(systemName: "arrow.clockwise") }.help("Refresh controllers")
+            }
+            HStack {
+                Picker("Button Labels", selection: $client.layoutChoice) {
+                    ForEach(ControllerLayout.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
+                }
+                Text(client.layout.rawValue).font(.caption).foregroundStyle(.secondary)
+            }
+            TabView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Touch Screen · 320 × 240").font(.headline)
+                    HStack(alignment: .top, spacing: 24) {
+                        TouchSurface(client: client).frame(width: 320, height: 240)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Click and drag to use the stylus.\nNo 3DS video is displayed here.").foregroundStyle(.secondary)
+                            Text("Controller Input").font(.headline)
+                            Text(client.pressedSources.sorted().map { client.sourceLabel($0) }.joined(separator: " · ").isEmpty ? "—" : client.pressedSources.sorted().map { client.sourceLabel($0) }.joined(separator: " · "))
+                            Text("3DS Output").font(.headline)
+                            Text(client.pressed.sorted().joined(separator: " · ").isEmpty ? "—" : client.pressed.sorted().joined(separator: " · "))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("HOME").padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                                .gesture(DragGesture(minimumDistance: 0).onChanged { _ in client.home = true }.onEnded { _ in client.home = false })
+                                .help("Hold to send HOME")
+                        }
+                    }
+                }.padding().tabItem { Label("Input", systemImage: "hand.draw") }
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(Client.targets, id: \.self) { target in
+                            Picker(target, selection: Binding(get: { client.mapping[target] ?? "None" }, set: { client.mapping[target] = $0; client.save() })) {
+                                ForEach(Client.sources, id: \.self) { source in
+                                    if let symbol = client.sourceSymbol(source), NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil {
+                                        Label(client.sourceLabel(source), systemImage: symbol).tag(source)
+                                    } else {
+                                        Text(client.sourceLabel(source) + (client.currentController != nil && !client.sourceIsAvailable(source) ? " (Unavailable)" : "")).tag(source)
+                                    }
+                                }
+                            }
+                        }
+                    }.padding()
+                    Text("HOME and Capture are controller inputs. Map them to a 3DS button above. Unavailable inputs are not exposed by macOS for this controller.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
+                    HStack {
+                        Text("3DS button → Controller button. Labels follow the selected controller.").foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Restore Defaults") { client.restoreDefaults() }
+                    }.padding(.horizontal)
+                }.tabItem { Label("Button Mapping", systemImage: "switch.2") }
+                Form {
+                    HStack {
+                        Text("Send Rate")
+                        Spacer()
+                        Text("\(client.sendRate) Hz").monospacedDigit()
+                    }
+                    Slider(value: Binding(
+                        get: { Double(client.sendRate) },
+                        set: { client.sendRate = Int($0.rounded()) }
+                    ), in: 50...250, step: 1) {
+                        Text("Send Rate")
+                    } minimumValueLabel: {
+                        Text("50 Hz")
+                    } maximumValueLabel: {
+                        Text("250 Hz")
+                    }
+                    Text("Changes apply immediately and are saved automatically.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
+                    Text("Left stick → Circle Pad; right stick → C-Stick.\nZL / ZR and C-Stick require a New 3DS.").foregroundStyle(.secondary)
+                }.padding().tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
+            }
+            Text("Enable InputRedirection in Rosalina → Miscellaneous options. Connect your Mac and 3DS to the same LAN.")
+                .font(.caption).foregroundStyle(.secondary)
+        }.padding(24).frame(minWidth: 720, minHeight: 620)
+            .onChange(of: client.layoutChoice) { _ in client.save() }
+            .onChange(of: client.invertY) { _ in client.save() }
+    }
+}
+
+struct TouchSurface: NSViewRepresentable {
+    var client: Client
+    func makeNSView(context: Context) -> TouchView { let view = TouchView(); view.client = client; return view }
+    func updateNSView(_ nsView: TouchView, context: Context) { nsView.client = client }
+}
+final class TouchView: NSView {
+    weak var client: Client?
+    override var isFlipped: Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.controlBackgroundColor.setFill(); bounds.fill()
+        NSColor.separatorColor.setStroke()
+        let grid = NSBezierPath()
+        for x in stride(from: 0.0, through: bounds.width, by: 40) { grid.move(to: NSPoint(x: x, y: 0)); grid.line(to: NSPoint(x: x, y: bounds.height)) }
+        for y in stride(from: 0.0, through: bounds.height, by: 40) { grid.move(to: NSPoint(x: 0, y: y)); grid.line(to: NSPoint(x: bounds.width, y: y)) }
+        grid.stroke()
+        if let (x, y) = client?.touch {
+            NSColor.controlAccentColor.setFill()
+            NSBezierPath(ovalIn: NSRect(x: x - 5, y: y - 5, width: 10, height: 10)).fill()
+        }
+    }
+    private func update(_ event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        client?.touch = (max(0, min(320, p.x)), max(0, min(240, p.y)))
+        needsDisplay = true
+    }
+    override func mouseDown(with event: NSEvent) { update(event) }
+    override func mouseDragged(with event: NSEvent) { update(event) }
+    override func mouseUp(with event: NSEvent) { client?.touch = nil; needsDisplay = true }
+}

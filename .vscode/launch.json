@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:InputRedirection}",
+            "name": "Debug InputRedirection",
+            "target": "InputRedirection",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug InputRedirection"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:InputRedirection}",
+            "name": "Release InputRedirection",
+            "target": "InputRedirection",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release InputRedirection"
+        }
+    ]
+}
