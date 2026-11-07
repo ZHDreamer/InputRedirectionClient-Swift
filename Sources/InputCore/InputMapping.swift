@@ -1,11 +1,24 @@
 import Foundation
 
 public enum InputTarget: String, CaseIterable {
-    case a = "A", b = "B", x = "X", y = "Y"
-    case l = "L", r = "R", zl = "ZL", zr = "ZR"
-    case up = "D-Pad Up", down = "D-Pad Down", left = "D-Pad Left", right = "D-Pad Right"
-    case circlePad = "Circle Pad", cStick = "C-Stick"
-    case start = "Start", select = "Select", home = "HOME", power = "Power"
+    case a = "A"
+    case b = "B"
+    case x = "X"
+    case y = "Y"
+    case l = "L"
+    case r = "R"
+    case zl = "ZL"
+    case zr = "ZR"
+    case up = "D-Pad Up"
+    case down = "D-Pad Down"
+    case left = "D-Pad Left"
+    case right = "D-Pad Right"
+    case circlePad = "Circle Pad"
+    case cStick = "C-Stick"
+    case start = "Start"
+    case select = "Select"
+    case home = "HOME"
+    case power = "Power"
 
     public var isStick: Bool { self == .circlePad || self == .cStick }
     public var sources: [InputSource] { InputSource.allCases.filter { $0.isStick == isStick } }
@@ -30,12 +43,26 @@ public enum InputTarget: String, CaseIterable {
 
 public enum InputSource: String, CaseIterable {
     case none = "None"
-    case a = "A", b = "B", x = "X", y = "Y"
-    case lb = "LB", rb = "RB", lt = "LT", rt = "RT"
-    case up = "D-Pad Up", down = "D-Pad Down", left = "D-Pad Left", right = "D-Pad Right"
-    case leftStick = "Left Stick", rightStick = "Right Stick"
-    case leftStickButton = "LS", rightStickButton = "RS"
-    case menu = "Menu", view = "View", xbox = "Xbox", share = "Share"
+    case a = "A"
+    case b = "B"
+    case x = "X"
+    case y = "Y"
+    case lb = "LB"
+    case rb = "RB"
+    case lt = "LT"
+    case rt = "RT"
+    case up = "D-Pad Up"
+    case down = "D-Pad Down"
+    case left = "D-Pad Left"
+    case right = "D-Pad Right"
+    case leftStick = "Left Stick"
+    case rightStick = "Right Stick"
+    case leftStickButton = "LS"
+    case rightStickButton = "RS"
+    case menu = "Menu"
+    case view = "View"
+    case xbox = "Xbox"
+    case share = "Share"
 
     public var isStick: Bool { self == .leftStick || self == .rightStick }
 }

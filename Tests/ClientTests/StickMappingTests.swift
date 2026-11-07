@@ -10,8 +10,10 @@ final class StickMappingTests: XCTestCase {
         let preferences = UserDefaults(suiteName: name)!
         let controller = GCController.withExtendedGamepad()
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
-        defer { client.stop()
-            preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         controller.extendedGamepad!.leftThumbstick.setValueForXAxis(0.25, yAxis: -0.5)
         controller.extendedGamepad!.rightThumbstick.setValueForXAxis(-0.75, yAxis: 1)
         client.mapping[.circlePad] = .rightStick

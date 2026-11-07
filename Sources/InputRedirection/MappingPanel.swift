@@ -1,5 +1,5 @@
-import SwiftUI
 import InputCore
+import SwiftUI
 
 struct MappingPanel: View {
     @ObservedObject var client: Client
@@ -19,7 +19,9 @@ struct MappingPanel: View {
                     diamond("Face Buttons", top: .x, left: .y, right: .a, bottom: .b)
                 }
                 HStack(spacing: 12) {
-                    ForEach([InputTarget.home, .power, .start, .select], id: \.self) { mappingButton($0) }
+                    ForEach([InputTarget.home, .power, .start, .select], id: \.self) {
+                        mappingButton($0)
+                    }
                 }
                 HStack {
                     Text("Open a menu, then select an input or press it on your controller.")
@@ -50,7 +52,10 @@ struct MappingPanel: View {
         }.frame(maxWidth: .infinity)
     }
 
-    private func diamond(_ title: String, top: InputTarget, left: InputTarget, right: InputTarget, bottom: InputTarget) -> some View {
+    private func diamond(
+        _ title: String, top: InputTarget, left: InputTarget, right: InputTarget,
+        bottom: InputTarget
+    ) -> some View {
         GroupBox(title) {
             HStack(spacing: 8) {
                 mappingButton(left)

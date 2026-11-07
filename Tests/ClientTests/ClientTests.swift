@@ -1,8 +1,9 @@
-import XCTest
 import Combine
-import GameController
 import Darwin
+import GameController
 import InputCore
+import XCTest
+
 @testable import InputRedirection
 
 final class ClientTests: XCTestCase {
@@ -10,7 +11,10 @@ final class ClientTests: XCTestCase {
         let name = "InputRedirectionTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         let client = Client(preferences: preferences, controllerProvider: { [] })
-        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         try body(client)
     }
 
@@ -23,14 +27,20 @@ final class ClientTests: XCTestCase {
         controller.extendedGamepad!.buttonA.localizedName = "System Button Name"
         controller.extendedGamepad!.buttonA.sfSymbolsName = "b.circle"
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
-        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
         XCTAssertEqual(client.sourceSymbol(InputSource.a), "b.circle")
-        XCTAssertEqual(client.defaultMapping[.a], InputSource.b, "Display metadata must not change the brand defaults")
+        XCTAssertEqual(
+            client.defaultMapping[.a], InputSource.b,
+            "Display metadata must not change the brand defaults")
         XCTAssertEqual(client.mapping[.home], InputSource.a)
         controller.extendedGamepad!.buttonA.sfSymbolsName = nil
         client.refresh()
-        XCTAssertNil(client.sourceSymbol(InputSource.a), "Do not invent a symbol when Apple supplies none")
+        XCTAssertNil(
+            client.sourceSymbol(InputSource.a), "Do not invent a symbol when Apple supplies none")
         XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
     }
 
@@ -43,7 +53,8 @@ final class ClientTests: XCTestCase {
                 var changes = 0
                 let subscription = client.objectWillChange.sink { changes += 1 }
                 RunLoop.main.run(until: Date().addingTimeInterval(0.15))
-                XCTAssertEqual(changes, 0, "Idle must not invalidate the SwiftUI view at the send rate")
+                XCTAssertEqual(
+                    changes, 0, "Idle must not invalidate the SwiftUI view at the send rate")
                 withExtendedLifetime(subscription) {}
             }
         }
@@ -54,7 +65,10 @@ final class ClientTests: XCTestCase {
         let preferences = UserDefaults(suiteName: name)!
         let controller = GCController.withExtendedGamepad()
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
-        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         controller.extendedGamepad!.buttonA.setValue(1)
         try? await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertTrue(client.pressedSources.contains(InputSource.a))
@@ -70,7 +84,9 @@ final class ClientTests: XCTestCase {
         try await MainActor.run {
             try withClient { client in
                 let receiver = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-                guard receiver >= 0 else { throw XCTSkip("UDP sockets unavailable in this environment") }
+                guard receiver >= 0 else {
+                    throw XCTSkip("UDP sockets unavailable in this environment")
+                }
                 defer { Darwin.close(receiver) }
                 var endpoint = sockaddr_in()
                 endpoint.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -78,9 +94,14 @@ final class ClientTests: XCTestCase {
                 endpoint.sin_port = UInt16(4950).bigEndian
                 endpoint.sin_addr.s_addr = inet_addr("127.0.0.1")
                 let result = withUnsafePointer(to: &endpoint) {
-                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(receiver, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        Darwin.bind(receiver, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+                    }
                 }
-                guard result == 0 else { throw XCTSkip("Loopback UDP port unavailable: \(String(cString: strerror(errno)))") }
+                guard result == 0 else {
+                    throw XCTSkip(
+                        "Loopback UDP port unavailable: \(String(cString: strerror(errno)))")
+                }
                 _ = fcntl(receiver, F_SETFL, O_NONBLOCK)
                 client.address = "127.0.0.1"
                 client.start()
@@ -93,7 +114,8 @@ final class ClientTests: XCTestCase {
                 var buffer = [UInt8](repeating: 0, count: 64)
                 var packets = 0
                 while Darwin.recv(receiver, &buffer, buffer.count, 0) > 0 { packets += 1 }
-                XCTAssertGreaterThan(packets, 1, "The network heartbeat must continue even with unchanged input")
+                XCTAssertGreaterThan(
+                    packets, 1, "The network heartbeat must continue even with unchanged input")
                 client.stop()
                 XCTAssertFalse(client.isSendTimerRunning)
                 client.sendRate = 250

@@ -1,5 +1,5 @@
-import Foundation
 import Darwin
+import Foundation
 
 enum UDPSocket {
     static func make() throws -> Int32 {
@@ -9,8 +9,11 @@ enum UDPSocket {
         // network access is denied. Apply to the socket before connect or send,
         // including the best-effort neutral packets used during cleanup.
         var enabled: Int32 = 1
-        guard setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &enabled,
-                         socklen_t(MemoryLayout<Int32>.size)) == 0 else {
+        guard
+            setsockopt(
+                descriptor, SOL_SOCKET, SO_NOSIGPIPE, &enabled,
+                socklen_t(MemoryLayout<Int32>.size)) == 0
+        else {
             let failure = error()
             Darwin.close(descriptor)
             throw failure

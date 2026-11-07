@@ -1,5 +1,6 @@
-import XCTest
 import Darwin
+import XCTest
+
 @testable import InputRedirection
 
 final class SocketFailureTests: XCTestCase {
@@ -15,7 +16,9 @@ final class SocketFailureTests: XCTestCase {
         endpoint.sin_port = UInt16(4950).bigEndian
         endpoint.sin_addr.s_addr = inet_addr("127.0.0.1")
         let result = withUnsafePointer(to: &endpoint) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
         }
         guard result == 0 else {
             let message = String(cString: strerror(errno))
@@ -43,11 +46,16 @@ final class SocketFailureTests: XCTestCase {
         let name = "InputRedirectionSocketTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         var attempts = 0
-        let client = Client(preferences: preferences, controllerProvider: { [] }, socketFactory: {
-            attempts += 1
-            return try self.failedSocket()
-        })
-        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        let client = Client(
+            preferences: preferences, controllerProvider: { [] },
+            socketFactory: {
+                attempts += 1
+                return try self.failedSocket()
+            })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         client.address = "127.0.0.1"
         for expectedAttempts in 1...2 {
             client.start()

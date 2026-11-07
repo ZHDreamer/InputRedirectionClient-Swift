@@ -11,8 +11,10 @@ final class MappingCaptureTests: XCTestCase {
         let preferences = UserDefaults(suiteName: name)!
         let controller = GCController.withExtendedGamepad()
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
-        defer { client.stop()
-            preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         let gamepad = controller.extendedGamepad!
         client.beginMapping(.x)
         gamepad.buttonA.setValue(1)

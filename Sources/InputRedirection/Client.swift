@@ -1,7 +1,7 @@
 import AppKit
 import Combine
-import GameController
 import Darwin
+import GameController
 import InputCore
 
 @MainActor final class Client: ObservableObject {
@@ -20,7 +20,9 @@ import InputCore
         get { defaultMapping.merging(mappingOverrides) { _, custom in custom } }
         set {
             let defaults = defaultMapping
-            mappingOverrides = newValue.filter { $0.key.sources.contains($0.value) && defaults[$0.key] != $0.value }
+            mappingOverrides = newValue.filter {
+                $0.key.sources.contains($0.value) && defaults[$0.key] != $0.value
+            }
             updatePreview()
         }
     }
@@ -58,12 +60,19 @@ import InputCore
         save()
     }
     @Published var pressedSources: Set<InputSource> = []
-    var currentController: GCController? { controllers.indices.contains(selected) ? controllers[selected] : nil }
+    var currentController: GCController? {
+        controllers.indices.contains(selected) ? controllers[selected] : nil
+    }
     var layout: ControllerLayout {
         guard let controller = currentController else { return .xbox }
-        if controller.extendedGamepad is GCDualSenseGamepad || controller.extendedGamepad is GCDualShockGamepad { return .playStation }
+        if controller.extendedGamepad is GCDualSenseGamepad
+            || controller.extendedGamepad is GCDualShockGamepad
+        {
+            return .playStation
+        }
         if controller.extendedGamepad is GCXboxGamepad { return .xbox }
-        return ControllerLayout.detect(category: controller.productCategory, vendor: controller.vendorName ?? "")
+        return ControllerLayout.detect(
+            category: controller.productCategory, vendor: controller.vendorName ?? "")
     }
     // Use the same elements for input polling and display metadata.
     private var sourceButtons: [(InputSource, GCControllerButtonInput?)] = []
@@ -102,7 +111,9 @@ import InputCore
         if let share = (controller.extendedGamepad as? GCXboxGamepad)?.buttonShare {
             return share
         }
-        let profiles = [controller.extendedGamepad, controller.physicalInputProfile].compactMap { $0 }
+        let profiles = [controller.extendedGamepad, controller.physicalInputProfile].compactMap {
+            $0
+        }
         for profile in profiles {
             if let button = profile.buttons[GCInputButtonShare] { return button }
         }
@@ -128,15 +139,24 @@ import InputCore
     @Published private var buttonMetadata: [InputSource: ButtonMetadata] = [:]
     private func refreshButtonMetadata() {
         let elements = Dictionary(uniqueKeysWithValues: sourceButtons)
-        let metadata = Dictionary(uniqueKeysWithValues: InputSource.allCases.map { source in
-            let element: GCControllerElement?
-            if source == .leftStick { element = currentController?.extendedGamepad?.leftThumbstick }
-            else if source == .rightStick { element = currentController?.extendedGamepad?.rightThumbstick }
-            else { element = elements[source] ?? nil }
-            return (source, ButtonMetadata(
-                label: element?.localizedName ?? source.rawValue,
-                symbol: element?.sfSymbolsName, available: source == .none || element != nil))
-        })
+        let metadata = Dictionary(
+            uniqueKeysWithValues: InputSource.allCases.map { source in
+                let element: GCControllerElement?
+                if source == .leftStick {
+                    element = currentController?.extendedGamepad?.leftThumbstick
+                } else if source == .rightStick {
+                    element = currentController?.extendedGamepad?.rightThumbstick
+                } else {
+                    element = elements[source] ?? nil
+                }
+                return (
+                    source,
+                    ButtonMetadata(
+                        label: element?.localizedName ?? source.rawValue,
+                        symbol: element?.sfSymbolsName, available: source == .none || element != nil
+                    )
+                )
+            })
         if buttonMetadata != metadata { buttonMetadata = metadata }
     }
     func sourceIsAvailable(_ source: InputSource) -> Bool {
@@ -160,7 +180,9 @@ import InputCore
             }
         }
         if let gamepad = currentController?.extendedGamepad {
-            stickInputs = [(.leftStick, gamepad.leftThumbstick), (.rightStick, gamepad.rightThumbstick)]
+            stickInputs = [
+                (.leftStick, gamepad.leftThumbstick), (.rightStick, gamepad.rightThumbstick),
+            ]
             for (source, stick) in stickInputs {
                 stick.valueChangedHandler = { [weak self] _, x, y in
                     // Deliberate movement for assignment only; transmitted axes remain unfiltered.
@@ -174,9 +196,12 @@ import InputCore
         refreshButtonMetadata()
         updatePreview()
     }
-    private var systemButtonPreferences: [(GCControllerButtonInput, GCControllerElement.SystemGestureState)] = []
+    private var systemButtonPreferences:
+        [(GCControllerButtonInput, GCControllerElement.SystemGestureState)] = []
     private func releaseSystemButtons() {
-        for (button, preference) in systemButtonPreferences { button.preferredSystemGestureState = preference }
+        for (button, preference) in systemButtonPreferences {
+            button.preferredSystemGestureState = preference
+        }
         systemButtonPreferences.removeAll()
     }
     private func configureSystemButtons() {
@@ -206,21 +231,23 @@ import InputCore
     }
 
     func triggerPower(longPress: Bool) {
-        triggerPulse(.power,
-                     press: { $0.powerAction = longPress ? .longPress : .press },
-                     release: { $0.powerAction = nil })
+        triggerPulse(
+            .power,
+            press: { $0.powerAction = longPress ? .longPress : .press },
+            release: { $0.powerAction = nil })
     }
 
-    private func triggerPulse(_ button: PulseButton, press: (Client) -> Void,
-                              release: @escaping (Client) -> Void) {
+    private func triggerPulse(
+        _ button: PulseButton, press: (Client) -> Void,
+        release: @escaping (Client) -> Void
+    ) {
         guard sending else { return }
         releaseTasks[button]?.cancel()
         press(self)
         tick()
         guard sending else { return }
         releaseTasks[button] = Task { @MainActor [weak self] in
-            do { try await Task.sleep(nanoseconds: 150_000_000) }
-            catch { return }
+            do { try await Task.sleep(nanoseconds: 150_000_000) } catch { return }
             guard let self else { return }
             release(self)
             self.releaseTasks[button] = nil
@@ -242,7 +269,11 @@ import InputCore
     private let preferences: UserDefaults
     private let controllerProvider: () -> [GCController]
     private let socketFactory: () throws -> Int32
-    init(preferences: UserDefaults = .standard, controllerProvider: @escaping () -> [GCController] = { GCController.controllers() }, socketFactory: @escaping () throws -> Int32 = UDPSocket.make) {
+    init(
+        preferences: UserDefaults = .standard,
+        controllerProvider: @escaping () -> [GCController] = { GCController.controllers() },
+        socketFactory: @escaping () throws -> Int32 = UDPSocket.make
+    ) {
         // Continue receiving controller events when another app has focus.
         GCController.shouldMonitorBackgroundEvents = true
         self.preferences = preferences
@@ -251,21 +282,37 @@ import InputCore
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
         invertY = preferences.bool(forKey: "invertY")
         sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 120))
-        for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect, .GCControllerUserCustomizationsDidChange] {
-            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.refresh() }
-            })
+        for name in [
+            Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect,
+            .GCControllerUserCustomizationsDidChange,
+        ] {
+            observers.append(
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+                    [weak self] _ in
+                    Task { @MainActor in self?.refresh() }
+                })
         }
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.stop(); self?.releaseSystemButtons() }
-        })
-        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.stop() }
-        })
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.stop()
+                    self?.releaseSystemButtons()
+                }
+            })
+        observers.append(
+            NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.stop() }
+            })
         let saved = preferences.dictionary(forKey: "mappingOverrides") as? [String: String] ?? [:]
         for (key, value) in saved {
-            guard let target = InputTarget(rawValue: key), let source = InputSource(rawValue: value),
-                  target.sources.contains(source) else { continue }
+            guard let target = InputTarget(rawValue: key),
+                let source = InputSource(rawValue: value),
+                target.sources.contains(source)
+            else { continue }
             mappingOverrides[target] = source
         }
         refresh()
@@ -274,7 +321,8 @@ import InputCore
         timer?.invalidate()
         timer = nil
         guard sending else { return }
-        let inputTimer = Timer(timeInterval: 1.0 / Double(sendRate), repeats: true) { [weak self] _ in
+        let inputTimer = Timer(timeInterval: 1.0 / Double(sendRate), repeats: true) {
+            [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
         inputTimer.tolerance = 0
@@ -287,7 +335,11 @@ import InputCore
     }
     func save() {
         let d = preferences
-        d.set(address, forKey: "address"); d.set(Dictionary(uniqueKeysWithValues: mappingOverrides.map { ($0.key.rawValue, $0.value.rawValue) }), forKey: "mappingOverrides")
+        d.set(address, forKey: "address")
+        d.set(
+            Dictionary(
+                uniqueKeysWithValues: mappingOverrides.map { ($0.key.rawValue, $0.value.rawValue) }),
+            forKey: "mappingOverrides")
         d.set(invertY, forKey: "invertY")
     }
     func start() {
@@ -297,22 +349,34 @@ import InputCore
         endpoint.sin_family = sa_family_t(AF_INET)
         endpoint.sin_port = UInt16(4950).bigEndian
         let ip = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard inet_pton(AF_INET, ip, &endpoint.sin_addr) == 1 else { status = "Enter a valid 3DS IPv4 address"; return }
-        do { socketFD = try socketFactory() }
-        catch { status = "Unable to configure UDP socket: \(error.localizedDescription)"; return }
+        guard inet_pton(AF_INET, ip, &endpoint.sin_addr) == 1 else {
+            status = "Enter a valid 3DS IPv4 address"
+            return
+        }
+        do { socketFD = try socketFactory() } catch {
+            status = "Unable to configure UDP socket: \(error.localizedDescription)"
+            return
+        }
         let result = withUnsafePointer(to: &endpoint) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
         }
         guard result == 0 else {
             let message = String(cString: strerror(errno))
-            stop(); status = "Network error: \(message)"; return
+            stop()
+            status = "Network error: \(message)"
+            return
         }
         // Prevent App Nap from throttling the send timer while hidden or unfocused.
         sendingActivity = ProcessInfo.processInfo.beginActivity(
             options: .userInitiatedAllowingIdleSystemSleep,
             reason: "Redirect controller input to Nintendo 3DS"
         )
-        address = ip; save(); sending = true; status = "Sending to \(ip):4950 · \(sendRate) Hz"
+        address = ip
+        save()
+        sending = true
+        status = "Sending to \(ip):4950 · \(sendRate) Hz"
         scheduleInputTimer()
         tick()
     }
@@ -329,21 +393,30 @@ import InputCore
         timer = nil
         if socketFD >= 0 {
             let neutral = InputFrame().encoded()
-            for _ in 0..<3 { _ = neutral.withUnsafeBytes { Darwin.send(socketFD, $0.baseAddress, $0.count, 0) } }
-            Darwin.close(socketFD); socketFD = -1
+            for _ in 0..<3 {
+                _ = neutral.withUnsafeBytes { Darwin.send(socketFD, $0.baseAddress, $0.count, 0) }
+            }
+            Darwin.close(socketFD)
+            socketFD = -1
         }
-        sending = false; touch = nil; home = false; status = "Stopped"
+        sending = false
+        touch = nil
+        home = false
+        status = "Stopped"
         updatePreview()
     }
     // Idle preview uses button transition callbacks; no idle polling timer.
     private func buttonValues() -> [InputSource: Bool] {
         Dictionary(uniqueKeysWithValues: sourceButtons.map { ($0.0, $0.1?.isPressed ?? false) })
     }
-    private func updatePreview(values: [InputSource: Bool]? = nil, currentMapping: [InputTarget: InputSource]? = nil) {
+    private func updatePreview(
+        values: [InputSource: Bool]? = nil, currentMapping: [InputTarget: InputSource]? = nil
+    ) {
         let values = values ?? buttonValues()
         let currentMapping = currentMapping ?? mapping
         let sources = Set(values.filter { $0.value }.map { $0.key })
-        let targets = Set(InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
+        let targets = Set(
+            InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
         // @Published emits even for equal values. Avoid redrawing at the send rate.
         if pressedSources != sources { pressedSources = sources }
         if pressed != targets { pressed = targets }
@@ -361,12 +434,19 @@ import InputCore
             state.rightY = Double(c.yAxis.value) * (invertY ? -1 : 1)
         }
         let currentMapping = mapping
-        func active(_ target: InputTarget) -> Bool { values[currentMapping[target] ?? .none] ?? false }
+        func active(_ target: InputTarget) -> Bool {
+            values[currentMapping[target] ?? .none] ?? false
+        }
         updatePreview(values: values, currentMapping: currentMapping)
-        for target in InputTarget.allCases where active(target) { state.buttons |= target.buttonMask }
+        for target in InputTarget.allCases where active(target) {
+            state.buttons |= target.buttonMask
+        }
         state.power = active(.power) || powerAction == .press
         state.powerLong = powerAction == .longPress
-        state.zl = active(.zl); state.zr = active(.zr); state.home = home || active(.home); state.touch = touch
+        state.zl = active(.zl)
+        state.zr = active(.zr)
+        state.home = home || active(.home)
+        state.touch = touch
         return state
     }
     private func tick() {
@@ -375,7 +455,8 @@ import InputCore
         let sent = data.withUnsafeBytes { Darwin.send(socketFD, $0.baseAddress, $0.count, 0) }
         if sent != data.count {
             let message = String(cString: strerror(errno))
-            stop(); status = "Send failed: \(message)"
+            stop()
+            status = "Send failed: \(message)"
         }
     }
 }

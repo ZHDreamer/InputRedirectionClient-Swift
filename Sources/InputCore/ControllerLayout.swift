@@ -6,9 +6,14 @@ public enum ControllerLayout {
     public static func detect(category: String, vendor: String) -> Self {
         let name = (category + " " + vendor).lowercased()
         if name.contains("dualsense") || name.contains("dualshock") || name.contains("playstation")
-            || name.contains("wireless controller") && name.contains("sony") { return .playStation }
+            || name.contains("wireless controller") && name.contains("sony")
+        {
+            return .playStation
+        }
         if name.contains("xbox") { return .xbox }
-        if name.contains("nintendo") || name.contains("switch") || name.contains("joy-con") { return .nintendo }
+        if name.contains("nintendo") || name.contains("switch") || name.contains("joy-con") {
+            return .nintendo
+        }
         return .xbox
     }
 
@@ -23,10 +28,13 @@ public enum ControllerLayout {
             .circlePad: .leftStick,
             .cStick: .rightStick,
             .start: .menu, .select: .view,
-            .home: .none, .power: .none]
+            .home: .none, .power: .none,
+        ]
         if self == .nintendo {
-            result[.a] = .a; result[.b] = .b
-            result[.x] = .x; result[.y] = .y
+            result[.a] = .a
+            result[.b] = .b
+            result[.x] = .x
+            result[.y] = .y
         }
         return result
     }

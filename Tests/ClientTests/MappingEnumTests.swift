@@ -1,6 +1,7 @@
-import XCTest
 import GameController
 import InputCore
+import XCTest
+
 @testable import InputRedirection
 
 final class MappingEnumTests: XCTestCase {
@@ -8,8 +9,12 @@ final class MappingEnumTests: XCTestCase {
         let name = "MappingEnums.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         defer { preferences.removePersistentDomain(forName: name) }
-        preferences.set(["HOME": "Share", "D-Pad Up": "A", "A": "B", "Power (Long)": "Y",
-                         "B": "Unknown", "X": "Left Stick", "Circle Pad": "Right Stick", "C-Stick": "Left Stick"], forKey: "mappingOverrides")
+        preferences.set(
+            [
+                "HOME": "Share", "D-Pad Up": "A", "A": "B", "Power (Long)": "Y",
+                "B": "Unknown", "X": "Left Stick", "Circle Pad": "Right Stick",
+                "C-Stick": "Left Stick",
+            ], forKey: "mappingOverrides")
         let client = Client(preferences: preferences, controllerProvider: { [] })
         defer { client.stop() }
         XCTAssertEqual(client.mapping[.home], .share)
@@ -54,16 +59,25 @@ final class MappingEnumTests: XCTestCase {
         let preferences = UserDefaults(suiteName: name)!
         let controller = GCController.withExtendedGamepad()
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
-        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
         controller.extendedGamepad!.buttonA.setValue(1)
-        let wireOrder: [InputTarget] = [.a, .b, .select, .start, .right, .left, .up, .down, .r, .l, .x, .y]
+        let wireOrder: [InputTarget] = [
+            .a, .b, .select, .start, .right, .left, .up, .down, .r, .l, .x, .y,
+        ]
         for (bit, target) in wireOrder.enumerated() {
             var mapping = client.mapping
-            for button in InputTarget.allCases where !button.isStick { mapping[button] = InputSource.none }
+            for button in InputTarget.allCases where !button.isStick {
+                mapping[button] = InputSource.none
+            }
             mapping[target] = .a
             client.mapping = mapping
             let packet = client.inputFrame().encoded()
-            let actual = packet.prefix(4).enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << ($1.offset * 8) }
+            let actual = packet.prefix(4).enumerated().reduce(UInt32(0)) {
+                $0 | UInt32($1.element) << ($1.offset * 8)
+            }
             XCTAssertEqual(actual, 0xfff & ~(1 << bit), "Incorrect HID bit for \(target.rawValue)")
         }
     }
