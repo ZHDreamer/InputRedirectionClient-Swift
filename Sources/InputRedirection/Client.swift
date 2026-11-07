@@ -122,22 +122,37 @@ import InputCore
         buttonMetadata[source]?.label ?? layout.label(for: source)
     }
     var touch: (Double, Double)?
-    var home = false
+    @Published private(set) var home = false
     enum PowerAction { case press, longPress }
     @Published private(set) var powerAction: PowerAction?
-    private var powerReleaseTask: Task<Void, Never>?
+    private enum PulseButton { case home, power }
+    private var releaseTasks: [PulseButton: Task<Void, Never>] = [:]
+
+    func triggerHome() {
+        guard !home else { return }
+        triggerPulse(.home, press: { $0.home = true }, release: { $0.home = false })
+    }
 
     func triggerPower(longPress: Bool) {
+        triggerPulse(.power,
+                     press: { $0.powerAction = longPress ? .longPress : .press },
+                     release: { $0.powerAction = nil })
+    }
+
+    private func triggerPulse(_ button: PulseButton, press: (Client) -> Void,
+                              release: @escaping (Client) -> Void) {
         guard sending else { return }
-        powerReleaseTask?.cancel()
-        powerAction = longPress ? .longPress : .press
+        releaseTasks[button]?.cancel()
+        press(self)
         tick()
-        powerReleaseTask = Task { @MainActor [weak self] in
+        guard sending else { return }
+        releaseTasks[button] = Task { @MainActor [weak self] in
             do { try await Task.sleep(nanoseconds: 150_000_000) }
             catch { return }
-            self?.powerAction = nil
-            self?.powerReleaseTask = nil
-            self?.tick()
+            guard let self else { return }
+            release(self)
+            self.releaseTasks[button] = nil
+            self.tick()
         }
     }
     private var socketFD: Int32 = -1
@@ -231,8 +246,8 @@ import InputCore
         tick()
     }
     func stop() {
-        powerReleaseTask?.cancel()
-        powerReleaseTask = nil
+        for task in releaseTasks.values { task.cancel() }
+        releaseTasks.removeAll()
         if powerAction != nil { powerAction = nil }
         timer?.invalidate()
         timer = nil

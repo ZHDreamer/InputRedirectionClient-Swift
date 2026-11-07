@@ -74,12 +74,9 @@ struct ContentView: View {
                             Text(client.pressed.sorted().joined(separator: " · ").isEmpty ? "—" : client.pressed.sorted().joined(separator: " · "))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             HStack(spacing: 10) {
-                                Button("HOME") {}
-                                    .simultaneousGesture(DragGesture(minimumDistance: 0)
-                                        .onChanged { _ in client.home = true }
-                                        .onEnded { _ in client.home = false })
-                                    .help("Hold to send HOME")
-                                    .disabled(!client.sending)
+                                Button("HOME") { client.triggerHome() }
+                                    .help("Send a HOME press")
+                                    .disabled(!client.sending || client.home)
                                 Button("Power") { client.triggerPower(longPress: false) }
                                     .help("Send a power press")
                                     .disabled(!client.sending || client.powerAction != nil)
