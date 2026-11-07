@@ -56,15 +56,30 @@ import InputCore
             ("↑", g.dpad.up), ("↓", g.dpad.down), ("←", g.dpad.left), ("→", g.dpad.right)]
     }
     private var captureButton: GCControllerButtonInput? {
-        guard let profile = currentController?.physicalInputProfile else { return nil }
-        if let button = profile.buttons[GCInputButtonShare] { return button }
-        // Some Nintendo drivers expose Capture as a vendor-specific element.
-        return profile.buttons.first { key, button in
-            let aliases = ([key] + Array(button.aliases)).map { $0.lowercased() }
-            return aliases.contains { $0.contains("capture") || $0.contains("screenshot") }
-                || button.sfSymbolsName?.hasPrefix("camera.") == true
-        }?.value
+        guard let controller = currentController else { return nil }
+        // Xbox Share can be exposed on the specialized gamepad rather than the
+        // generic physical profile. Use the actual element for polling and gestures.
+        if let share = (controller.extendedGamepad as? GCXboxGamepad)?.buttonShare {
+            return share
+        }
+        let profiles = [controller.extendedGamepad, controller.physicalInputProfile].compactMap { $0 }
+        for profile in profiles {
+            if let button = profile.buttons[GCInputButtonShare] { return button }
+        }
+        // Drivers may expose Share/Capture under a vendor-specific name or alias.
+        for profile in profiles {
+            if let button = profile.buttons.first(where: { key, button in
+                let aliases = ([key] + Array(button.aliases)).map { $0.lowercased() }
+                return aliases.contains {
+                    $0.contains("share") || $0.contains("capture") || $0.contains("screenshot")
+                } || button.sfSymbolsName?.hasPrefix("camera.") == true
+            })?.value {
+                return button
+            }
+        }
+        return nil
     }
+
     private struct ButtonMetadata: Equatable {
         var label: String
         var symbol: String?
