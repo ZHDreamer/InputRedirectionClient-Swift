@@ -2,6 +2,7 @@ import XCTest
 import Combine
 import GameController
 import Darwin
+import InputCore
 @testable import InputRedirection
 
 final class ClientTests: XCTestCase {
@@ -11,6 +12,26 @@ final class ClientTests: XCTestCase {
         let client = Client(preferences: preferences, controllerProvider: { [] })
         defer { client.stop(); preferences.removePersistentDomain(forName: name) }
         try body(client)
+    }
+
+    @MainActor func testAppleMetadataIgnoresLegacyLabelChoiceAndKeepsMappings() {
+        let name = "InputRedirectionMetadataTests.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        preferences.set("Nintendo", forKey: "layoutChoice")
+        preferences.set(["HOME": "A"], forKey: "mappingOverrides")
+        let controller = GCController.withExtendedGamepad()
+        controller.extendedGamepad!.buttonA.localizedName = "System Button Name"
+        controller.extendedGamepad!.buttonA.sfSymbolsName = "b.circle"
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer { client.stop(); preferences.removePersistentDomain(forName: name) }
+        XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
+        XCTAssertEqual(client.sourceSymbol(InputSource.a), "b.circle")
+        XCTAssertEqual(client.defaultMapping[.a], InputSource.b, "Display metadata must not change the brand defaults")
+        XCTAssertEqual(client.mapping[.home], InputSource.a)
+        controller.extendedGamepad!.buttonA.sfSymbolsName = nil
+        client.refresh()
+        XCTAssertNil(client.sourceSymbol(InputSource.a), "Do not invent a symbol when Apple supplies none")
+        XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
     }
 
     func testIdleDoesNotPollOrPublishRepeatedly() async {
@@ -36,8 +57,8 @@ final class ClientTests: XCTestCase {
         defer { client.stop(); preferences.removePersistentDomain(forName: name) }
         controller.extendedGamepad!.buttonA.setValue(1)
         try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertTrue(client.pressedSources.contains("South"))
-        XCTAssertTrue(client.pressed.contains("B"))
+        XCTAssertTrue(client.pressedSources.contains(InputSource.a))
+        XCTAssertTrue(client.pressed.contains(.b))
         XCTAssertFalse(client.isSendTimerRunning)
         controller.extendedGamepad!.buttonA.setValue(0)
         try? await Task.sleep(nanoseconds: 50_000_000)

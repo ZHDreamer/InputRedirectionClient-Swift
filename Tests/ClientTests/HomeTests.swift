@@ -1,6 +1,7 @@
 import XCTest
 import GameController
 import Darwin
+import InputCore
 @testable import InputRedirection
 
 final class HomeTests: XCTestCase {
@@ -13,7 +14,7 @@ final class HomeTests: XCTestCase {
         client.triggerHome()
         XCTAssertFalse(client.home)
         XCTAssertFalse(client.isSendTimerRunning)
-        client.mapping["Home"] = "South"
+        client.mapping[.home] = InputSource.a
         client.sendRate = 50
         let receiver = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard receiver >= 0 else { throw XCTSkip("UDP sockets unavailable") }

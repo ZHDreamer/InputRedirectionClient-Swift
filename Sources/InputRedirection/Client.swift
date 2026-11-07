@@ -10,50 +10,90 @@ import InputCore
     @Published var selected = 0 { didSet { configureController() } }
     @Published var sending = false
     @Published var status = "Not sending"
-    @Published var pressed: Set<String> = []
+    @Published var pressed: Set<InputTarget> = []
     @Published var invertY = false
-    @Published private var mappingOverrides: [String: String] = [:]
-    var defaultMapping: [String: String] {
-        let legends = Dictionary(uniqueKeysWithValues: ["South", "East", "West", "North"].map { ($0, sourceLabel($0)) })
-        return layout.defaultMapping(faceLegends: legends)
+    @Published private var mappingOverrides: [InputTarget: InputSource] = [:]
+    var defaultMapping: [InputTarget: InputSource] {
+        layout.defaultMapping()
     }
-    var mapping: [String: String] {
+    var mapping: [InputTarget: InputSource] {
         get { defaultMapping.merging(mappingOverrides) { _, custom in custom } }
         set {
             let defaults = defaultMapping
-            mappingOverrides = newValue.filter { Self.targets.contains($0.key) && defaults[$0.key] != $0.value }
+            mappingOverrides = newValue.filter { $0.key.sources.contains($0.value) && defaults[$0.key] != $0.value }
             updatePreview()
         }
     }
+    @Published private(set) var mappingTarget: InputTarget?
+    private var mappingStartedAt = 0.0
+    private var stickInputs: [(InputSource, GCControllerDirectionPad)] = []
+
+    func beginMapping(_ target: InputTarget) {
+        stop()
+        mappingStartedAt = ProcessInfo.processInfo.systemUptime
+        mappingTarget = target
+    }
+
+    func cancelMapping() { mappingTarget = nil }
+
+    private func captureButton(_ source: InputSource, at time: Double) {
+        guard let target = mappingTarget, !target.isStick, time >= mappingStartedAt else { return }
+        mapping[target] = source
+        cancelMapping()
+        save()
+    }
+
+    private func captureStick(_ stick: InputSource, at time: Double) {
+        guard let target = mappingTarget, time >= mappingStartedAt else { return }
+        guard target.isStick else { return }
+        mapping[target] = stick
+        cancelMapping()
+        save()
+    }
+
     func restoreDefaults() {
+        cancelMapping()
         mappingOverrides = [:]
         updatePreview()
         save()
     }
-    @Published var layoutChoice = ControllerLayout.automatic.rawValue {
-        didSet { refreshButtonMetadata(); updatePreview() }
-    }
-    @Published var pressedSources: Set<String> = []
+    @Published var pressedSources: Set<InputSource> = []
     var currentController: GCController? { controllers.indices.contains(selected) ? controllers[selected] : nil }
     var layout: ControllerLayout {
-        let choice = ControllerLayout(rawValue: layoutChoice) ?? .automatic
-        guard choice == .automatic else { return choice }
-        guard let controller = currentController else { return .generic }
-        if controller.extendedGamepad is GCDualSenseGamepad { return .dualSense }
-        if controller.extendedGamepad is GCDualShockGamepad { return .dualShock }
+        guard let controller = currentController else { return .xbox }
+        if controller.extendedGamepad is GCDualSenseGamepad || controller.extendedGamepad is GCDualShockGamepad { return .playStation }
         if controller.extendedGamepad is GCXboxGamepad { return .xbox }
         return ControllerLayout.detect(category: controller.productCategory, vendor: controller.vendorName ?? "")
     }
     // Use the same elements for input polling and display metadata.
-    private var sourceButtons: [(String, GCControllerButtonInput?)] = []
-    private func readSourceButtons() -> [(String, GCControllerButtonInput?)] {
+    private var sourceButtons: [(InputSource, GCControllerButtonInput?)] = []
+    private func readSourceButtons() -> [(InputSource, GCControllerButtonInput?)] {
         guard let g = currentController?.extendedGamepad else { return [] }
-        return [
-            ("ControllerHome", g.buttonHome), ("Capture", captureButton),
-            ("South", g.buttonA), ("East", g.buttonB), ("West", g.buttonX), ("North", g.buttonY),
-            ("L1", g.leftShoulder), ("R1", g.rightShoulder), ("L2", g.leftTrigger), ("R2", g.rightTrigger),
-            ("Menu", g.buttonMenu), ("Options", g.buttonOptions), ("L3", g.leftThumbstickButton), ("R3", g.rightThumbstickButton),
-            ("↑", g.dpad.up), ("↓", g.dpad.down), ("←", g.dpad.left), ("→", g.dpad.right)]
+        return InputSource.allCases.filter { !$0.isStick }.map { source in
+            let button: GCControllerButtonInput?
+            switch source {
+            case .a: button = g.buttonA
+            case .b: button = g.buttonB
+            case .x: button = g.buttonX
+            case .y: button = g.buttonY
+            case .lb: button = g.leftShoulder
+            case .rb: button = g.rightShoulder
+            case .lt: button = g.leftTrigger
+            case .rt: button = g.rightTrigger
+            case .up: button = g.dpad.up
+            case .down: button = g.dpad.down
+            case .left: button = g.dpad.left
+            case .right: button = g.dpad.right
+            case .leftStickButton: button = g.leftThumbstickButton
+            case .rightStickButton: button = g.rightThumbstickButton
+            case .xbox: button = g.buttonHome
+            case .share: button = captureButton
+            case .menu: button = g.buttonMenu
+            case .view: button = g.buttonOptions
+            case .none, .leftStick, .rightStick: button = nil
+            }
+            return (source, button)
+        }
     }
     private var captureButton: GCControllerButtonInput? {
         guard let controller = currentController else { return nil }
@@ -85,31 +125,48 @@ import InputCore
         var symbol: String?
         var available: Bool
     }
-    @Published private var buttonMetadata: [String: ButtonMetadata] = [:]
+    @Published private var buttonMetadata: [InputSource: ButtonMetadata] = [:]
     private func refreshButtonMetadata() {
-        let currentLayout = layout
-        let automatic = layoutChoice == ControllerLayout.automatic.rawValue
         let elements = Dictionary(uniqueKeysWithValues: sourceButtons)
-        let metadata = Dictionary(uniqueKeysWithValues: Self.sources.map { source in
-            let button = elements[source] ?? nil
-            let symbol = automatic ? button?.sfSymbolsName : nil
-            return (source, ButtonMetadata(label: currentLayout.label(for: source, symbol: symbol),
-                symbol: symbol, available: source == "None" || button != nil))
+        let metadata = Dictionary(uniqueKeysWithValues: InputSource.allCases.map { source in
+            let element: GCControllerElement?
+            if source == .leftStick { element = currentController?.extendedGamepad?.leftThumbstick }
+            else if source == .rightStick { element = currentController?.extendedGamepad?.rightThumbstick }
+            else { element = elements[source] ?? nil }
+            return (source, ButtonMetadata(
+                label: element?.localizedName ?? source.rawValue,
+                symbol: element?.sfSymbolsName, available: source == .none || element != nil))
         })
         if buttonMetadata != metadata { buttonMetadata = metadata }
     }
-    func sourceIsAvailable(_ source: String) -> Bool {
-        buttonMetadata[source]?.available ?? (source == "None")
+    func sourceIsAvailable(_ source: InputSource) -> Bool {
+        buttonMetadata[source]?.available ?? (source == .none)
     }
     private func configureController() {
+        cancelMapping()
+        for (_, stick) in stickInputs { stick.valueChangedHandler = nil }
+        stickInputs.removeAll()
         for (_, button) in sourceButtons { button?.pressedChangedHandler = nil }
         releaseSystemButtons()
         sourceButtons = readSourceButtons()
-        for (_, button) in sourceButtons {
-            button?.pressedChangedHandler = { [weak self] _, _, _ in
+        for (source, button) in sourceButtons {
+            button?.pressedChangedHandler = { [weak self] _, _, isPressed in
+                let time = ProcessInfo.processInfo.systemUptime
                 Task { @MainActor [weak self] in
-                    guard let self, !self.sending else { return }
-                    self.updatePreview()
+                    guard let self else { return }
+                    if isPressed { self.captureButton(source, at: time) }
+                    if !self.sending { self.updatePreview() }
+                }
+            }
+        }
+        if let gamepad = currentController?.extendedGamepad {
+            stickInputs = [(.leftStick, gamepad.leftThumbstick), (.rightStick, gamepad.rightThumbstick)]
+            for (source, stick) in stickInputs {
+                stick.valueChangedHandler = { [weak self] _, x, y in
+                    // Deliberate movement for assignment only; transmitted axes remain unfiltered.
+                    guard max(abs(x), abs(y)) > 0.6 else { return }
+                    let time = ProcessInfo.processInfo.systemUptime
+                    Task { @MainActor [weak self] in self?.captureStick(source, at: time) }
                 }
             }
         }
@@ -124,17 +181,17 @@ import InputCore
     }
     private func configureSystemButtons() {
         releaseSystemButtons()
-        for (source, element) in sourceButtons where source == "ControllerHome" || source == "Capture" {
+        for (source, element) in sourceButtons where source == .xbox || source == .share {
             guard let button = element, button.isBoundToSystemGesture else { continue }
             systemButtonPreferences.append((button, button.preferredSystemGestureState))
             button.preferredSystemGestureState = .disabled
         }
     }
-    func sourceSymbol(_ source: String) -> String? {
+    func sourceSymbol(_ source: InputSource) -> String? {
         buttonMetadata[source]?.symbol
     }
-    func sourceLabel(_ source: String) -> String {
-        buttonMetadata[source]?.label ?? layout.label(for: source)
+    func sourceLabel(_ source: InputSource) -> String {
+        buttonMetadata[source]?.label ?? source.rawValue
     }
     var touch: (Double, Double)?
     @Published private(set) var home = false
@@ -182,10 +239,6 @@ import InputCore
     private var timer: Timer?
     private var sendingActivity: NSObjectProtocol?
     private var observers: [NSObjectProtocol] = []
-    static let targets = ["A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L", "X", "Y", "ZL", "ZR", "Home", "Power"]
-    static let sources = ["None", "South", "East", "West", "North", "L1", "R1", "L2", "R2", "Menu", "Options", "L3", "R3", "ControllerHome", "Capture", "↑", "↓", "←", "→"]
-
-
     private let preferences: UserDefaults
     private let controllerProvider: () -> [GCController]
     private let socketFactory: () throws -> Int32
@@ -197,8 +250,6 @@ import InputCore
         self.socketFactory = socketFactory
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
         invertY = preferences.bool(forKey: "invertY")
-        mappingOverrides = preferences.dictionary(forKey: "mappingOverrides") as? [String: String] ?? [:]
-        layoutChoice = preferences.string(forKey: "layoutChoice") ?? ControllerLayout.automatic.rawValue
         sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 120))
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect, .GCControllerUserCustomizationsDidChange] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -211,14 +262,12 @@ import InputCore
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.stop() }
         })
-        let legacySources = ["\u{65e0}": "None", "\u{5357}\u{952e}": "South", "\u{4e1c}\u{952e}": "East", "\u{897f}\u{952e}": "West", "\u{5317}\u{952e}": "North"]
-        if preferences.dictionary(forKey: "mappingOverrides") == nil {
-            let previous = preferences.dictionary(forKey: "mapping") as? [String: String] ?? [:]
-            let migrated = previous.mapValues { legacySources[$0] ?? $0 }
-            mappingOverrides = migrated.filter { ControllerLayout.legacyDefaults[$0.key] != $0.value }
-            preferences.set(mappingOverrides, forKey: "mappingOverrides")
+        let saved = preferences.dictionary(forKey: "mappingOverrides") as? [String: String] ?? [:]
+        for (key, value) in saved {
+            guard let target = InputTarget(rawValue: key), let source = InputSource(rawValue: value),
+                  target.sources.contains(source) else { continue }
+            mappingOverrides[target] = source
         }
-        mappingOverrides = mappingOverrides.filter { Self.targets.contains($0.key) }
         refresh()
     }
     private func scheduleInputTimer() {
@@ -238,8 +287,7 @@ import InputCore
     }
     func save() {
         let d = preferences
-        d.set(layoutChoice, forKey: "layoutChoice")
-        d.set(address, forKey: "address"); d.set(mappingOverrides, forKey: "mappingOverrides")
+        d.set(address, forKey: "address"); d.set(Dictionary(uniqueKeysWithValues: mappingOverrides.map { ($0.key.rawValue, $0.value.rawValue) }), forKey: "mappingOverrides")
         d.set(invertY, forKey: "invertY")
     }
     func start() {
@@ -269,6 +317,7 @@ import InputCore
         tick()
     }
     func stop() {
+        cancelMapping()
         if let sendingActivity {
             ProcessInfo.processInfo.endActivity(sendingActivity)
             self.sendingActivity = nil
@@ -287,37 +336,42 @@ import InputCore
         updatePreview()
     }
     // Idle preview uses button transition callbacks; no idle polling timer.
-    private func buttonValues() -> [String: Bool] {
+    private func buttonValues() -> [InputSource: Bool] {
         Dictionary(uniqueKeysWithValues: sourceButtons.map { ($0.0, $0.1?.isPressed ?? false) })
     }
-    private func updatePreview(values: [String: Bool]? = nil, currentMapping: [String: String]? = nil) {
+    private func updatePreview(values: [InputSource: Bool]? = nil, currentMapping: [InputTarget: InputSource]? = nil) {
         let values = values ?? buttonValues()
         let currentMapping = currentMapping ?? mapping
         let sources = Set(values.filter { $0.value }.map { $0.key })
-        let targets = Set(Self.targets.filter { values[currentMapping[$0] ?? "None"] ?? false })
+        let targets = Set(InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
         // @Published emits even for equal values. Avoid redrawing at the send rate.
         if pressedSources != sources { pressedSources = sources }
         if pressed != targets { pressed = targets }
     }
     var isSendTimerRunning: Bool { timer?.isValid ?? false }
-    private func tick() {
-        guard sending else { return }
+    func inputFrame() -> InputFrame {
         var state = InputFrame()
         let values = buttonValues()
         if let g = currentController?.extendedGamepad {
-            state.leftX = Double(g.leftThumbstick.xAxis.value)
-            state.leftY = Double(g.leftThumbstick.yAxis.value) * (invertY ? -1 : 1)
-            state.rightX = Double(g.rightThumbstick.xAxis.value)
-            state.rightY = Double(g.rightThumbstick.yAxis.value) * (invertY ? -1 : 1)
+            let circle = mapping[.circlePad] == .leftStick ? g.leftThumbstick : g.rightThumbstick
+            let c = mapping[.cStick] == .leftStick ? g.leftThumbstick : g.rightThumbstick
+            state.leftX = Double(circle.xAxis.value)
+            state.leftY = Double(circle.yAxis.value) * (invertY ? -1 : 1)
+            state.rightX = Double(c.xAxis.value)
+            state.rightY = Double(c.yAxis.value) * (invertY ? -1 : 1)
         }
         let currentMapping = mapping
-        func active(_ target: String) -> Bool { values[currentMapping[target] ?? "None"] ?? false }
+        func active(_ target: InputTarget) -> Bool { values[currentMapping[target] ?? .none] ?? false }
         updatePreview(values: values, currentMapping: currentMapping)
-        for (bit, target) in Self.targets.prefix(12).enumerated() where active(target) { state.buttons |= 1 << bit }
-        state.power = active("Power") || powerAction == .press
+        for target in InputTarget.allCases where active(target) { state.buttons |= target.buttonMask }
+        state.power = active(.power) || powerAction == .press
         state.powerLong = powerAction == .longPress
-        state.zl = active("ZL"); state.zr = active("ZR"); state.home = home || active("Home"); state.touch = touch
-        let data = state.encoded()
+        state.zl = active(.zl); state.zr = active(.zr); state.home = home || active(.home); state.touch = touch
+        return state
+    }
+    private func tick() {
+        guard sending else { return }
+        let data = inputFrame().encoded()
         let sent = data.withUnsafeBytes { Darwin.send(socketFD, $0.baseAddress, $0.count, 0) }
         if sent != data.count {
             let message = String(cString: strerror(errno))

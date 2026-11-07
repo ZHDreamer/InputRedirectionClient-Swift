@@ -47,12 +47,6 @@ struct ContentView: View {
                 }
                 Button { client.refresh() } label: { Image(systemName: "arrow.clockwise") }.help("Refresh controllers")
             }
-            HStack {
-                Picker("Button Labels", selection: $client.layoutChoice) {
-                    ForEach(ControllerLayout.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
-                }
-                Text(client.layout.rawValue).font(.caption).foregroundStyle(.secondary)
-            }
             TabView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Touch Screen · 320 × 240").font(.headline)
@@ -65,19 +59,20 @@ struct ContentView: View {
                             ScrollView(.horizontal) {
                                 HStack(spacing: 8) {
                                     if client.pressedSources.isEmpty { Text("—") }
-                                    ForEach(client.pressedSources.sorted(), id: \.self) { source in
+                                    ForEach(InputSource.allCases.filter { client.pressedSources.contains($0) }, id: \.self) { source in
                                         ControllerButtonLabel(client: client, source: source)
                                     }
                                 }
                             }.frame(height: 24)
                             Text("3DS Output").font(.headline)
-                            Text(client.pressed.sorted().joined(separator: " · ").isEmpty ? "—" : client.pressed.sorted().joined(separator: " · "))
+                            let output = InputTarget.allCases.filter { client.pressed.contains($0) }.map(\.rawValue).joined(separator: " · ")
+                            Text(output.isEmpty ? "—" : output)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             HStack(spacing: 10) {
-                                Button("HOME") { client.triggerHome() }
+                                Button(InputTarget.home.rawValue) { client.triggerHome() }
                                     .help("Send a HOME press")
                                     .disabled(!client.sending || client.home)
-                                Button("Power") { client.triggerPower(longPress: false) }
+                                Button(InputTarget.power.rawValue) { client.triggerPower(longPress: false) }
                                     .help("Send a power press")
                                     .disabled(!client.sending || client.powerAction != nil)
                                 Button("Power (Long)") { client.triggerPower(longPress: true) }
@@ -87,24 +82,8 @@ struct ContentView: View {
                         }
                     }
                 }.padding().tabItem { Label("Input", systemImage: "hand.draw") }
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(Client.targets, id: \.self) { target in
-                            Picker(target, selection: Binding(get: { client.mapping[target] ?? "None" }, set: { client.mapping[target] = $0; client.save() })) {
-                                ForEach(Client.sources, id: \.self) { source in
-                                    ControllerButtonLabel(client: client, source: source).tag(source)
-                                }
-                            }
-                        }
-                    }.padding()
-                    Text("HOME and Capture are controller inputs. Map them to a 3DS button above. Unavailable inputs are not exposed by macOS for this controller.")
-                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
-                    HStack {
-                        Text("3DS button → Controller button. Labels follow the selected controller.").foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Restore Defaults") { client.restoreDefaults() }
-                    }.padding(.horizontal)
-                }.tabItem { Label("Button Mapping", systemImage: "switch.2") }
+                MappingPanel(client: client)
+                    .tabItem { Label("Button Mapping", systemImage: "switch.2") }
                 Form {
                     HStack {
                         Text("Send Rate")
@@ -124,20 +103,19 @@ struct ContentView: View {
                     Text("Changes apply immediately and are saved automatically.")
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
-                    Text("Left stick → Circle Pad; right stick → C-Stick.\nZL / ZR and C-Stick require a New 3DS.").foregroundStyle(.secondary)
+                    Text("Choose stick assignments in Button Mapping.\nZL / ZR and C-Stick require a New 3DS.").foregroundStyle(.secondary)
                 }.padding().tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
             }
             Text("Enable InputRedirection in Rosalina → Miscellaneous options. Connect your Mac and 3DS to the same LAN.")
                 .font(.caption).foregroundStyle(.secondary)
         }.padding(24).frame(minWidth: 720, minHeight: 620)
-            .onChange(of: client.layoutChoice) { _ in client.save() }
             .onChange(of: client.invertY) { _ in client.save() }
     }
 }
 
 struct ControllerButtonLabel: View {
     @ObservedObject var client: Client
-    let source: String
+    let source: InputSource
 
     var body: some View {
         let name = client.sourceLabel(source)

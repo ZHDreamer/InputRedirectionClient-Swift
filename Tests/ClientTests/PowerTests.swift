@@ -1,29 +1,26 @@
 import XCTest
 import GameController
 import Darwin
+import InputCore
 @testable import InputRedirection
 
 final class PowerTests: XCTestCase {
     @MainActor func testPowerButtonAndControllerMappingsSendAndRelease() async throws {
         let name = "InputRedirectionPowerTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
-        preferences.set(["Power (Long)": "East"], forKey: "mappingOverrides")
+        preferences.set(["Power (Long)": "B"], forKey: "mappingOverrides")
         let controller = GCController.withExtendedGamepad()
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
         defer { client.stop(); preferences.removePersistentDomain(forName: name) }
         client.triggerPower(longPress: true)
         XCTAssertNil(client.powerAction, "Idle power clicks must not queue an action for the next connection")
         XCTAssertFalse(client.isSendTimerRunning)
-        XCTAssertEqual(client.mapping["Power"], "None")
-        XCTAssertNil(client.mapping["Power (Long)"])
-        client.mapping["Power"] = "South"
-        XCTAssertFalse(Client.targets.contains("Power (Long)"))
-        client.mapping["Power (Long)"] = "East"
-        XCTAssertNil(client.mapping["Power (Long)"], "Long power presses must be available only from the UI")
+        XCTAssertEqual(client.mapping[.power], InputSource.none)
+        XCTAssertNil(InputTarget(rawValue: "Power (Long)"))
+        client.mapping[.power] = InputSource.a
         client.save()
         let restored = Client(preferences: preferences, controllerProvider: { [] })
-        XCTAssertEqual(restored.mapping["Power"], "South")
-        XCTAssertNil(restored.mapping["Power (Long)"])
+        XCTAssertEqual(restored.mapping[.power], InputSource.a)
 
         let receiver = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard receiver >= 0 else { throw XCTSkip("UDP sockets unavailable") }
@@ -79,7 +76,6 @@ final class PowerTests: XCTestCase {
         XCTAssertFalse(client.isSendTimerRunning)
         XCTAssertEqual(flags().last, 0)
         client.restoreDefaults()
-        XCTAssertEqual(client.mapping["Power"], "None")
-        XCTAssertNil(client.mapping["Power (Long)"])
+        XCTAssertEqual(client.mapping[.power], InputSource.none)
     }
 }
