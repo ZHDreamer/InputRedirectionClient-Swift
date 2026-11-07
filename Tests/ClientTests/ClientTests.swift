@@ -22,7 +22,7 @@ final class ClientTests: XCTestCase {
         let name = "InputRedirectionMetadataTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         preferences.set("Nintendo", forKey: "layoutChoice")
-        preferences.set(["HOME": "A"], forKey: "mappingOverrides")
+        preferences.set(["Home": "A"], forKey: "mappingOverrides")
         let controller = GCController.withExtendedGamepad()
         controller.extendedGamepad!.buttonA.localizedName = "System Button Name"
         controller.extendedGamepad!.buttonA.sfSymbolsName = "b.circle"

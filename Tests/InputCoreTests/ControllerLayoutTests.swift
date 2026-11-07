@@ -12,8 +12,8 @@ final class ControllerLayoutTests: XCTestCase {
             XCTAssertEqual(
                 targets.map { family.defaultMapping()[$0]! },
                 [InputSource.b, InputSource.a, InputSource.y, InputSource.x])
-            XCTAssertEqual(family.defaultMapping()[.start], InputSource.menu)
-            XCTAssertEqual(family.defaultMapping()[.select], InputSource.view)
+            XCTAssertEqual(family.defaultMapping()[.start], InputSource.start)
+            XCTAssertEqual(family.defaultMapping()[.select], InputSource.select)
         }
     }
 

@@ -28,7 +28,7 @@ final class MappingCaptureTests: XCTestCase {
         client.cancelMapping()
         gamepad.buttonX.setValue(1)
         try await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(client.mapping[.home], InputSource.none)
+        XCTAssertEqual(client.mapping[.home], InputSource.home)
         client.beginMapping(.circlePad)
         gamepad.rightThumbstick.setValueForXAxis(0.1, yAxis: 0)
         try await Task.sleep(nanoseconds: 50_000_000)

@@ -85,20 +85,20 @@ import InputCore
             case .b: button = g.buttonB
             case .x: button = g.buttonX
             case .y: button = g.buttonY
-            case .lb: button = g.leftShoulder
-            case .rb: button = g.rightShoulder
-            case .lt: button = g.leftTrigger
-            case .rt: button = g.rightTrigger
+            case .l1: button = g.leftShoulder
+            case .r1: button = g.rightShoulder
+            case .l2: button = g.leftTrigger
+            case .r2: button = g.rightTrigger
             case .up: button = g.dpad.up
             case .down: button = g.dpad.down
             case .left: button = g.dpad.left
             case .right: button = g.dpad.right
-            case .leftStickButton: button = g.leftThumbstickButton
-            case .rightStickButton: button = g.rightThumbstickButton
-            case .xbox: button = g.buttonHome
-            case .share: button = captureButton
-            case .menu: button = g.buttonMenu
-            case .view: button = g.buttonOptions
+            case .l3: button = g.leftThumbstickButton
+            case .r3: button = g.rightThumbstickButton
+            case .home: button = g.buttonHome
+            case .capture: button = captureButton
+            case .start: button = g.buttonMenu
+            case .select: button = g.buttonOptions
             case .none, .leftStick, .rightStick: button = nil
             }
             return (source, button)
@@ -206,7 +206,7 @@ import InputCore
     }
     private func configureSystemButtons() {
         releaseSystemButtons()
-        for (source, element) in sourceButtons where source == .xbox || source == .share {
+        for (source, element) in sourceButtons where source == .home || source == .capture {
             guard let button = element, button.isBoundToSystemGesture else { continue }
             systemButtonPreferences.append((button, button.preferredSystemGestureState))
             button.preferredSystemGestureState = .disabled
