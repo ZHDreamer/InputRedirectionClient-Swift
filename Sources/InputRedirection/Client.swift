@@ -140,9 +140,11 @@ import InputCore
 
     private let preferences: UserDefaults
     private let controllerProvider: () -> [GCController]
-    init(preferences: UserDefaults = .standard, controllerProvider: @escaping () -> [GCController] = { GCController.controllers() }) {
+    private let socketFactory: () throws -> Int32
+    init(preferences: UserDefaults = .standard, controllerProvider: @escaping () -> [GCController] = { GCController.controllers() }, socketFactory: @escaping () throws -> Int32 = UDPSocket.make) {
         self.preferences = preferences
         self.controllerProvider = controllerProvider
+        self.socketFactory = socketFactory
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
         invertY = preferences.bool(forKey: "invertY")
         mappingOverrides = preferences.dictionary(forKey: "mappingOverrides") as? [String: String] ?? [:]
@@ -197,13 +199,15 @@ import InputCore
         endpoint.sin_port = UInt16(4950).bigEndian
         let ip = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard inet_pton(AF_INET, ip, &endpoint.sin_addr) == 1 else { status = "Enter a valid 3DS IPv4 address"; return }
-        socketFD = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-        guard socketFD >= 0 else { status = "Unable to create UDP socket"; return }
+        do { socketFD = try socketFactory() }
+        catch { status = "Unable to configure UDP socket: \(error.localizedDescription)"; return }
         let result = withUnsafePointer(to: &endpoint) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
-        guard result == 0 else { stop(); status = "Network error: \(String(cString: strerror(errno)))"; return }
-        _ = fcntl(socketFD, F_SETFL, O_NONBLOCK)
+        guard result == 0 else {
+            let message = String(cString: strerror(errno))
+            stop(); status = "Network error: \(message)"; return
+        }
         address = ip; save(); sending = true; status = "Sending to \(ip):4950 · \(sendRate) Hz"
         scheduleInputTimer()
         tick()
