@@ -1,0 +1,17 @@
+## Git Commit Conventions
+
+- Follow the Conventional Commits specification (v1.0.0).
+- Use the format: `type(scope): description`.
+- Scope is optional.
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Write commit messages in English.
+- Use lowercase types and scopes.
+- Use the imperative mood in descriptions (e.g., "add", not "added").
+- Do not capitalize the first letter of descriptions unless necessary.
+- Do not end descriptions with a period.
+- Keep the subject line under 72 characters.
+- Keep each commit focused on a single logical change.
+- For breaking changes, use `!` after the type/scope or a `BREAKING CHANGE:` footer.
+- Use `chore: initial commit` for the initial repository commit.
+- When creating Git commits, always follow these conventions.
+- Do not create Git commits unless explicitly requested.
