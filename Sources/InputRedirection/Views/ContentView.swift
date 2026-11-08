@@ -28,6 +28,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.borderedProminent)
                     }
+                    SendRateControl(sendRate: $client.sendRate)
                     Text(client.status).font(.callout).textSelection(.enabled)
                     Text("UDP has no connection acknowledgment. Verify input on your 3DS.").font(
                         .caption
@@ -98,25 +99,6 @@ struct ContentView: View {
                 MappingPanel(client: client)
                     .tabItem { Label("Button Mapping", systemImage: "switch.2") }
                 Form {
-                    HStack {
-                        Text("Send Rate")
-                        Spacer()
-                        Text("\(client.sendRate) Hz").monospacedDigit()
-                    }
-                    Slider(
-                        value: Binding(
-                            get: { Double(client.sendRate) },
-                            set: { client.sendRate = Int($0.rounded()) }
-                        ), in: 50...250, step: 1
-                    ) {
-                        Text("Send Rate")
-                    } minimumValueLabel: {
-                        Text("50 Hz")
-                    } maximumValueLabel: {
-                        Text("250 Hz")
-                    }
-                    Text("Send rate applies to all controllers and is saved automatically.")
-                        .font(.caption).foregroundStyle(.secondary)
                     Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
                     Text(
                         "Choose stick assignments in Button Mapping.\nZL / ZR and C-Stick require a New 3DS."
