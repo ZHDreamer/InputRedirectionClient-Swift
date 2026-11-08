@@ -10,28 +10,37 @@ import InputCore
     // Use the same elements for input polling and display metadata.
     private var sourceButtons: [(InputSource, GCControllerButtonInput?)] = []
     private func readSourceButtons() -> [(InputSource, GCControllerButtonInput?)] {
-        guard let g = controller?.extendedGamepad else { return [] }
+        guard let profile = controller?.physicalInputProfile else { return [] }
+        let dpad = profile.dpads[GCInputDirectionPad]
         return InputSource.allCases.filter { !$0.isStick }.map { source in
             let button: GCControllerButtonInput?
             switch source {
-            case .a: button = g.buttonA
-            case .b: button = g.buttonB
-            case .x: button = g.buttonX
-            case .y: button = g.buttonY
-            case .l1: button = g.leftShoulder
-            case .r1: button = g.rightShoulder
-            case .l2: button = g.leftTrigger
-            case .r2: button = g.rightTrigger
-            case .up: button = g.dpad.up
-            case .down: button = g.dpad.down
-            case .left: button = g.dpad.left
-            case .right: button = g.dpad.right
-            case .l3: button = g.leftThumbstickButton
-            case .r3: button = g.rightThumbstickButton
-            case .home: button = g.buttonHome
+            case .a: button = profile.buttons[GCInputButtonA]
+            case .b: button = profile.buttons[GCInputButtonB]
+            case .x: button = profile.buttons[GCInputButtonX]
+            case .y: button = profile.buttons[GCInputButtonY]
+            case .l1: button = profile.buttons[GCInputLeftShoulder]
+            case .r1: button = profile.buttons[GCInputRightShoulder]
+            case .l2: button = profile.buttons[GCInputLeftTrigger]
+            case .r2: button = profile.buttons[GCInputRightTrigger]
+            case .up: button = dpad?.up
+            case .down: button = dpad?.down
+            case .left: button = dpad?.left
+            case .right: button = dpad?.right
+            case .leftStickUp: button = stick(.leftStick)?.up
+            case .leftStickDown: button = stick(.leftStick)?.down
+            case .leftStickLeft: button = stick(.leftStick)?.left
+            case .leftStickRight: button = stick(.leftStick)?.right
+            case .rightStickUp: button = stick(.rightStick)?.up
+            case .rightStickDown: button = stick(.rightStick)?.down
+            case .rightStickLeft: button = stick(.rightStick)?.left
+            case .rightStickRight: button = stick(.rightStick)?.right
+            case .l3: button = profile.buttons[GCInputLeftThumbstickButton]
+            case .r3: button = profile.buttons[GCInputRightThumbstickButton]
+            case .home: button = profile.buttons[GCInputButtonHome]
             case .capture: button = captureButton
-            case .start: button = g.buttonMenu
-            case .select: button = g.buttonOptions
+            case .start: button = profile.buttons[GCInputButtonMenu]
+            case .select: button = profile.buttons[GCInputButtonOptions]
             case .none, .leftStick, .rightStick: button = nil
             }
             return (source, button)
@@ -76,9 +85,9 @@ import InputCore
             uniqueKeysWithValues: InputSource.allCases.map { source in
                 let element: GCControllerElement?
                 if source == .leftStick {
-                    element = controller?.extendedGamepad?.leftThumbstick
+                    element = stick(.leftStick)
                 } else if source == .rightStick {
-                    element = controller?.extendedGamepad?.rightThumbstick
+                    element = stick(.rightStick)
                 } else {
                     element = elements[source] ?? nil
                 }
@@ -112,17 +121,15 @@ import InputCore
                 }
             }
         }
-        if let gamepad = controller?.extendedGamepad {
-            stickInputs = [
-                (.leftStick, gamepad.leftThumbstick), (.rightStick, gamepad.rightThumbstick),
-            ]
-            for (source, stick) in stickInputs {
-                stick.valueChangedHandler = { [weak self] _, x, y in
-                    // Deliberate movement for assignment only; transmitted axes remain unfiltered.
-                    guard max(abs(x), abs(y)) > 0.6 else { return }
-                    let time = ProcessInfo.processInfo.systemUptime
-                    Task { @MainActor [weak self] in self?.onStickMove?(source, time) }
-                }
+        stickInputs = InputSource.allCases.filter(\.isStick).compactMap { source in
+            stick(source).map { (source, $0) }
+        }
+        for (source, stick) in stickInputs {
+            stick.valueChangedHandler = { [weak self] _, x, y in
+                // Deliberate movement for assignment only; transmitted axes remain unfiltered.
+                guard max(abs(x), abs(y)) > 0.6 else { return }
+                let time = ProcessInfo.processInfo.systemUptime
+                Task { @MainActor [weak self] in self?.onStickMove?(source, time) }
             }
         }
         configureSystemButtons()
@@ -150,6 +157,15 @@ import InputCore
     func sourceLabel(_ source: InputSource) -> String {
         buttonMetadata[source]?.label ?? source.rawValue
     }
+    func stick(_ source: InputSource) -> GCControllerDirectionPad? {
+        guard let profile = controller?.physicalInputProfile else { return nil }
+        switch source {
+        case .leftStick: return profile.dpads[GCInputLeftThumbstick]
+        case .rightStick: return profile.dpads[GCInputRightThumbstick]
+        default: return nil
+        }
+    }
+
     func buttonValues() -> [InputSource: Bool] {
         Dictionary(uniqueKeysWithValues: sourceButtons.map { ($0.0, $0.1?.isPressed ?? false) })
     }

@@ -98,7 +98,10 @@ import InputCore
     }
 
     func refresh() {
-        controllers = controllerProvider().filter { $0.extendedGamepad != nil }
+        controllers = controllerProvider().filter {
+            let profile = $0.physicalInputProfile
+            return !profile.buttons.isEmpty || !profile.dpads.isEmpty
+        }
         selected = min(selected, max(0, controllers.count - 1))
     }
 
@@ -251,14 +254,12 @@ import InputCore
     func inputFrame() -> InputFrame {
         var state = InputFrame()
         let values = controllerInput.buttonValues()
-        if let g = currentController?.extendedGamepad {
-            let circle = mapping[.circlePad] == .leftStick ? g.leftThumbstick : g.rightThumbstick
-            let c = mapping[.cStick] == .leftStick ? g.leftThumbstick : g.rightThumbstick
-            state.leftX = Double(circle.xAxis.value)
-            state.leftY = Double(circle.yAxis.value) * (invertY ? -1 : 1)
-            state.rightX = Double(c.xAxis.value)
-            state.rightY = Double(c.yAxis.value) * (invertY ? -1 : 1)
-        }
+        let circle = controllerInput.stick(mapping[.circlePad] ?? .none)
+        let c = controllerInput.stick(mapping[.cStick] ?? .none)
+        state.leftX = Double(circle?.xAxis.value ?? 0)
+        state.leftY = Double(circle?.yAxis.value ?? 0) * (invertY ? -1 : 1)
+        state.rightX = Double(c?.xAxis.value ?? 0)
+        state.rightY = Double(c?.yAxis.value ?? 0) * (invertY ? -1 : 1)
         let currentMapping = mapping
         func active(_ target: InputTarget) -> Bool {
             values[currentMapping[target] ?? .none] ?? false

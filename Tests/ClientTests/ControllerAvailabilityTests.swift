@@ -25,7 +25,7 @@ final class ControllerAvailabilityTests: XCTestCase {
                 XCTAssertFalse(client.availableSources(for: target).contains(source))
             }
         }
-        XCTAssertEqual(client.availableSources(for: .circlePad), [.leftStick, .rightStick])
+        XCTAssertEqual(client.availableSources(for: .circlePad), [.none, .leftStick, .rightStick])
         client.mapping[.home] = .a
         client.restoreDefaults()
         XCTAssertEqual(client.mapping[.home], client.defaultMapping[.home])

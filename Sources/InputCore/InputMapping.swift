@@ -21,7 +21,9 @@ public enum InputTarget: String, CaseIterable {
     case power = "Power"
 
     public var isStick: Bool { self == .circlePad || self == .cStick }
-    public var sources: [InputSource] { InputSource.allCases.filter { $0.isStick == isStick } }
+    public var sources: [InputSource] {
+        InputSource.allCases.filter { $0 == .none || $0.isStick == isStick }
+    }
     public var buttonMask: UInt32 {
         switch self {
         case .a: return 1 << 0
@@ -57,6 +59,14 @@ public enum InputSource: String, CaseIterable {
     case right = "D-Pad Right"
     case leftStick = "Left Stick"
     case rightStick = "Right Stick"
+    case leftStickUp = "Left Stick Up"
+    case leftStickDown = "Left Stick Down"
+    case leftStickLeft = "Left Stick Left"
+    case leftStickRight = "Left Stick Right"
+    case rightStickUp = "Right Stick Up"
+    case rightStickDown = "Right Stick Down"
+    case rightStickLeft = "Right Stick Left"
+    case rightStickRight = "Right Stick Right"
     case l3 = "LS"
     case r3 = "RS"
     case start = "Start"
