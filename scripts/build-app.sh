@@ -16,7 +16,10 @@ cleanup() {
 }
 trap cleanup EXIT
 STAGED_APP="$STAGING_DIR/InputRedirection.app"
-mkdir -p "$STAGED_APP/Contents/MacOS"
+mkdir -p "$STAGED_APP/Contents/MacOS" "$STAGED_APP/Contents/Resources"
+swift scripts/render-icon.swift Resources/Icons/AppIcon.svg "$STAGING_DIR/AppIcon.iconset"
+iconutil --convert icns "$STAGING_DIR/AppIcon.iconset" \
+    --output "$STAGED_APP/Contents/Resources/AppIcon.icns"
 # Never overwrite signed code in place: use a fresh inode and sign the complete
 # staged bundle before replacing the previous build (Apple: Updating Mac Software).
 cp "$BIN_DIR/InputRedirection" "$STAGED_APP/Contents/MacOS/"
