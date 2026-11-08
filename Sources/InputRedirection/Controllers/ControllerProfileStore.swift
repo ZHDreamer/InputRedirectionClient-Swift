@@ -5,7 +5,6 @@ import InputCore
 struct ControllerProfile {
     var mappingOverrides: [InputTarget: InputSource] = [:]
     var invertY = false
-    var sendRate = 120
 }
 
 @MainActor final class ControllerProfileStore {
@@ -29,7 +28,6 @@ struct ControllerProfile {
             profile.mappingOverrides[target] = source
         }
         profile.invertY = saved["invertY"] as? Bool ?? false
-        profile.sendRate = min(250, max(50, saved["sendRate"] as? Int ?? 120))
         return profile
     }
 
@@ -41,7 +39,6 @@ struct ControllerProfile {
                     ($0.key.rawValue, $0.value.rawValue)
                 }),
             "invertY": profile.invertY,
-            "sendRate": profile.sendRate,
         ]
         preferences.set(profiles, forKey: "controllerProfiles")
     }

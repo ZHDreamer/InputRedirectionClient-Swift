@@ -115,7 +115,7 @@ struct ContentView: View {
                     } maximumValueLabel: {
                         Text("250 Hz")
                     }
-                    Text("Changes apply immediately and are saved for this controller.")
+                    Text("Send rate applies to all controllers and is saved automatically.")
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
                     Text(

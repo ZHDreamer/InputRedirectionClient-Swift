@@ -42,7 +42,7 @@ final class ControllerProfileTests: XCTestCase {
         XCTAssertEqual(client.mapping[.x], .y)
         XCTAssertEqual(client.mapping[.cStick], .rightStick)
         XCTAssertFalse(client.invertY)
-        XCTAssertEqual(client.sendRate, 120)
+        XCTAssertEqual(client.sendRate, 220)
         XCTAssertEqual(client.address, "10.0.0.3")
         client.mapping[.x] = .a
         client.sendRate = 75
@@ -50,12 +50,17 @@ final class ControllerProfileTests: XCTestCase {
         XCTAssertEqual(client.mapping[.x], .rightStickDown)
         XCTAssertEqual(client.mapping[.cStick], InputSource.none)
         XCTAssertTrue(client.invertY)
-        XCTAssertEqual(client.sendRate, 220)
+        XCTAssertEqual(client.sendRate, 75)
         client.restoreDefaults()
         XCTAssertEqual(client.mapping[.x], .x)
         client.selected = 1
         XCTAssertEqual(client.mapping[.x], .a)
         XCTAssertEqual(client.sendRate, 75)
+        XCTAssertEqual(preferences.integer(forKey: "sendRate"), 75)
+        let profiles = preferences.dictionary(forKey: "controllerProfiles") ?? [:]
+        for value in profiles.values {
+            XCTAssertNil((value as? [String: Any])?["sendRate"])
+        }
     }
 
     @MainActor func testProfilesSurviveDisconnectReconnectAndRestart() {
@@ -82,12 +87,12 @@ final class ControllerProfileTests: XCTestCase {
         client.refresh()
         XCTAssertEqual(client.mapping[.power], .a)
         XCTAssertTrue(client.invertY)
-        XCTAssertEqual(client.sendRate, 180)
+        XCTAssertEqual(client.sendRate, 50)
         let restarted = Client(preferences: preferences, controllerProvider: { [reconnected] })
         defer { restarted.stop() }
         XCTAssertEqual(restarted.mapping[.power], .a)
         XCTAssertTrue(restarted.invertY)
-        XCTAssertEqual(restarted.sendRate, 180)
+        XCTAssertEqual(restarted.sendRate, 50)
     }
 
     @MainActor func testRefreshPreservesSelectionWhenControllerOrderChanges() {

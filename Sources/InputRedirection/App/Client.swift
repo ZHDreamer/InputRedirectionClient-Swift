@@ -23,7 +23,7 @@ import InputCore
         didSet {
             guard sendRate != oldValue else { return }
             scheduleInputTimer()
-            saveCurrentProfile()
+            preferences.set(sendRate, forKey: "sendRate")
             if sending { status = "Sending to \(address):4950 · \(sendRate) Hz" }
         }
     }
@@ -59,6 +59,7 @@ import InputCore
         self.controllerProvider = controllerProvider
         self.socketFactory = socketFactory
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
+        sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 120))
         controllerInput.onButtonPress = { [weak self] source, time in
             self?.captureButton(source, at: time)
         }
@@ -173,7 +174,6 @@ import InputCore
         activeProfileKey = key
         mappingOverrides = profile.mappingOverrides
         invertY = profile.invertY
-        sendRate = profile.sendRate
         isLoadingProfile = false
     }
 
@@ -181,7 +181,7 @@ import InputCore
         guard !isLoadingProfile, let key = activeProfileKey else { return }
         profileStore.save(
             ControllerProfile(
-                mappingOverrides: mappingOverrides, invertY: invertY, sendRate: sendRate),
+                mappingOverrides: mappingOverrides, invertY: invertY),
             for: key)
     }
 
