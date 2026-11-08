@@ -124,6 +124,45 @@ final class ControllerProfileTests: XCTestCase {
         XCTAssertEqual(client.mapping[.power], .a)
     }
 
+    @MainActor func testUnassignedProfileStaysInMemory() {
+        let name = "InMemoryProfile.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        preferences.set(
+            [
+                "unassigned": ["invertY": true, "mappingOverrides": ["Power": "X"]]
+            ], forKey: "controllerProfiles")
+        let controller = NamedController(category: "Xbox One", name: "Xbox Controller")
+        var connected: [GCController] = []
+        let client = Client(preferences: preferences, controllerProvider: { connected })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        XCTAssertFalse(client.invertY)
+        client.mapping[.power] = .b
+        client.invertY = true
+        client.save()
+        XCTAssertNil(preferences.dictionary(forKey: "controllerProfiles")?["unassigned"])
+        connected = [controller]
+        client.refresh()
+        XCTAssertEqual(client.mapping[.power], InputSource.none)
+        XCTAssertFalse(client.invertY)
+        client.mapping[.power] = .a
+        connected = []
+        client.refresh()
+        XCTAssertEqual(client.mapping[.power], .b)
+        XCTAssertTrue(client.invertY)
+        client.save()
+        let profiles = preferences.dictionary(forKey: "controllerProfiles") ?? [:]
+        XCTAssertNil(profiles["unassigned"])
+        XCTAssertEqual(profiles.count, 1)
+        let restarted = Client(preferences: preferences, controllerProvider: { [] })
+        XCTAssertEqual(restarted.mapping[.power], InputSource.none)
+        XCTAssertFalse(restarted.invertY)
+        let reconnected = Client(preferences: preferences, controllerProvider: { [controller] })
+        XCTAssertEqual(reconnected.mapping[.power], .a)
+    }
+
     @MainActor func testRefreshPreservesSelectionWhenControllerOrderChanges() {
         let name = "ControllerProfileOrder.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

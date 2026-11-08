@@ -43,6 +43,7 @@ import InputCore
     private var observers: [NSObjectProtocol] = []
     private let profileStore: ControllerProfileStore
     private var activeProfileKey: String?
+    private var unassignedProfile = ControllerProfile()
     private var isLoadingProfile = false
     private let preferences: UserDefaults
     private let controllerProvider: () -> [GCController]
@@ -176,10 +177,10 @@ import InputCore
     }
 
     private func useProfile(for controller: GCController?) {
-        let key = ControllerProfileStore.key(for: controller)
+        let key = controller.map { ControllerProfileStore.key(for: $0) }
         guard activeProfileKey != key else { return }
         saveCurrentProfile()
-        let profile = profileStore.load(for: key)
+        let profile = key.map { profileStore.load(for: $0) } ?? unassignedProfile
         isLoadingProfile = true
         activeProfileKey = key
         mappingOverrides = profile.mappingOverrides
@@ -188,11 +189,13 @@ import InputCore
     }
 
     private func saveCurrentProfile() {
-        guard !isLoadingProfile, let key = activeProfileKey else { return }
-        profileStore.save(
-            ControllerProfile(
-                mappingOverrides: mappingOverrides, invertY: invertY),
-            for: key)
+        guard !isLoadingProfile else { return }
+        let profile = ControllerProfile(mappingOverrides: mappingOverrides, invertY: invertY)
+        if let key = activeProfileKey {
+            profileStore.save(profile, for: key)
+        } else {
+            unassignedProfile = profile
+        }
     }
 
     func save() {

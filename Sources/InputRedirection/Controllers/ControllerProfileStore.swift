@@ -11,10 +11,16 @@ struct ControllerProfile {
 @MainActor final class ControllerProfileStore {
     private let preferences: UserDefaults
 
-    init(preferences: UserDefaults) { self.preferences = preferences }
+    init(preferences: UserDefaults) {
+        self.preferences = preferences
+        if var profiles = preferences.dictionary(forKey: "controllerProfiles"),
+            profiles.removeValue(forKey: "unassigned") != nil
+        {
+            preferences.set(profiles, forKey: "controllerProfiles")
+        }
+    }
 
-    static func key(for controller: GCController?) -> String {
-        guard let controller else { return "unassigned" }
+    static func key(for controller: GCController) -> String {
         let profile = controller.physicalInputProfile
         let buttons = profile.buttons.keys.sorted()
         let dpads = profile.dpads.keys.sorted()

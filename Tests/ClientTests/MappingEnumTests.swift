@@ -9,9 +9,10 @@ final class MappingEnumTests: XCTestCase {
         let name = "MappingEnums.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         defer { preferences.removePersistentDomain(forName: name) }
+        let controller = GCController.withExtendedGamepad()
         preferences.set(
             [
-                ControllerProfileStore.key(for: nil): [
+                ControllerProfileStore.key(for: controller): [
                     "mappingOverrides": [
                         "Home": "Capture", "D-Pad Up": "A", "A": "B", "Power (Long)": "Y",
                         "B": "Unknown", "X": "Left Stick", "Circle Pad": "Right Stick",
@@ -19,7 +20,7 @@ final class MappingEnumTests: XCTestCase {
                     ]
                 ]
             ], forKey: "controllerProfiles")
-        let client = Client(preferences: preferences, controllerProvider: { [] })
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
         defer { client.stop() }
         XCTAssertEqual(client.mapping[.home], .capture)
         XCTAssertEqual(client.mapping[.up], .a)
@@ -34,16 +35,16 @@ final class MappingEnumTests: XCTestCase {
         XCTAssertEqual(client.mapping[.cStick], .rightStick)
         client.save()
         let profiles = preferences.dictionary(forKey: "controllerProfiles")
-        let profile = profiles?[ControllerProfileStore.key(for: nil)] as? [String: Any]
+        let profile = profiles?[ControllerProfileStore.key(for: controller)] as? [String: Any]
         let saved = profile?["mappingOverrides"] as? [String: String]
         XCTAssertEqual(saved?["Home"], "Capture")
         XCTAssertEqual(saved?["D-Pad Up"], "A")
         XCTAssertNil(saved?["Power (Long)"])
-        let restored = Client(preferences: preferences, controllerProvider: { [] })
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
         XCTAssertEqual(restored.mapping, client.mapping)
         client.restoreDefaults()
-        let reset = Client(preferences: preferences, controllerProvider: { [] })
-        XCTAssertEqual(reset.mapping, ControllerLayout.xbox.defaultMapping())
+        let reset = Client(preferences: preferences, controllerProvider: { [controller] })
+        XCTAssertEqual(reset.mapping, reset.defaultMapping)
     }
 
     @MainActor func testObsoleteSettingsAreIgnored() {
