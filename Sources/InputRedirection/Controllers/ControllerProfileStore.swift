@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import GameController
 import InputCore
@@ -13,7 +14,17 @@ struct ControllerProfile {
     init(preferences: UserDefaults) { self.preferences = preferences }
 
     static func key(for controller: GCController?) -> String {
-        controller?.productCategory ?? "unassigned"
+        guard let controller else { return "unassigned" }
+        let profile = controller.physicalInputProfile
+        let buttons = profile.buttons.keys.sorted()
+        let dpads = profile.dpads.keys.sorted()
+        // Counts and length prefixes make the three fields unambiguous.
+        let components =
+            [controller.productCategory, String(buttons.count)]
+            + buttons + [String(dpads.count)] + dpads
+        let identifier = components.map { "\($0.utf8.count):\($0)" }.joined()
+        let digest = SHA256.hash(data: Data(identifier.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     func load(for key: String) -> ControllerProfile {

@@ -5,11 +5,13 @@ import XCTest
 @testable import InputRedirection
 
 private final class NamedController: GCController {
-    private let inputSnapshot = GCController.withExtendedGamepad()
+    private let inputSnapshot: GCController
     private let category: String
     private let name: String
 
-    init(category: String, name: String) {
+    init(category: String, name: String, inputs: GCController = GCController.withExtendedGamepad())
+    {
+        inputSnapshot = inputs
         self.category = category
         self.name = name
         super.init()
@@ -82,7 +84,11 @@ final class ControllerProfileTests: XCTestCase {
         client.mapping[.power] = .b
         client.sendRate = 50
         let reconnected = NamedController(category: "Switch N64 Controller", name: "Renamed N64")
-        XCTAssertEqual(ControllerProfileStore.key(for: reconnected), "Switch N64 Controller")
+        XCTAssertEqual(
+            ControllerProfileStore.key(for: reconnected), ControllerProfileStore.key(for: original))
+        let key = ControllerProfileStore.key(for: reconnected)
+        XCTAssertEqual(key.count, 64)
+        XCTAssertTrue(key.allSatisfy { "0123456789abcdef".contains($0) })
         connected = [reconnected]
         client.refresh()
         XCTAssertEqual(client.mapping[.power], .a)
@@ -93,6 +99,29 @@ final class ControllerProfileTests: XCTestCase {
         XCTAssertEqual(restarted.mapping[.power], .a)
         XCTAssertTrue(restarted.invertY)
         XCTAssertEqual(restarted.sendRate, 50)
+    }
+
+    @MainActor func testSameCategoryWithDifferentControlsHasSeparateProfiles() {
+        let name = "ControllerProfileControls.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let extended = NamedController(category: "Generic", name: "Gamepad")
+        let reduced = NamedController(
+            category: "Generic", name: "Gamepad", inputs: GCController.withMicroGamepad())
+        let client = Client(preferences: preferences, controllerProvider: { [extended, reduced] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        XCTAssertNotEqual(
+            ControllerProfileStore.key(for: extended), ControllerProfileStore.key(for: reduced))
+        client.mapping[.power] = .rightStickUp
+        client.selected = 1
+        XCTAssertEqual(client.mapping[.power], InputSource.none)
+        client.mapping[.power] = .a
+        client.selected = 0
+        XCTAssertEqual(client.mapping[.power], .rightStickUp)
+        client.selected = 1
+        XCTAssertEqual(client.mapping[.power], .a)
     }
 
     @MainActor func testRefreshPreservesSelectionWhenControllerOrderChanges() {
