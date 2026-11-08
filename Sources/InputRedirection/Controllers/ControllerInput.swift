@@ -6,6 +6,7 @@ import InputCore
     var onStickMove: ((InputSource, Double) -> Void)?
     var onChange: (() -> Void)?
     private var controller: GCController?
+    private var pressedStickDirections: [InputSource: InputSource] = [:]
     private var stickInputs: [(InputSource, GCControllerDirectionPad)] = []
     // Use the same elements for input polling and display metadata.
     private var sourceButtons: [(InputSource, GCControllerButtonInput?)] = []
@@ -111,7 +112,7 @@ import InputCore
         for (_, button) in sourceButtons { button?.pressedChangedHandler = nil }
         releaseSystemButtons()
         sourceButtons = readSourceButtons()
-        for (source, button) in sourceButtons {
+        for (source, button) in sourceButtons where source.stickSource == nil {
             button?.pressedChangedHandler = { [weak self] _, _, isPressed in
                 let time = ProcessInfo.processInfo.systemUptime
                 Task { @MainActor [weak self] in
@@ -124,12 +125,22 @@ import InputCore
         stickInputs = InputSource.allCases.filter(\.isStick).compactMap { source in
             stick(source).map { (source, $0) }
         }
+        pressedStickDirections.removeAll()
         for (source, stick) in stickInputs {
-            stick.valueChangedHandler = { [weak self] _, x, y in
-                // Deliberate movement for assignment only; transmitted axes remain unfiltered.
-                guard max(abs(x), abs(y)) > 0.6 else { return }
+            pressedStickDirections[source] = Self.pressedDirection(for: source, stick: stick)
+            stick.valueChangedHandler = { [weak self] pad, x, y in
+                let direction = Self.pressedDirection(for: source, stick: pad)
                 let time = ProcessInfo.processInfo.systemUptime
-                Task { @MainActor [weak self] in self?.onStickMove?(source, time) }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if self.pressedStickDirections[source] != direction {
+                        self.pressedStickDirections[source] = direction
+                        if let direction { self.onButtonPress?(direction, time) }
+                        self.onChange?()
+                    }
+                    // Deliberate movement for full-stick assignment only; axes remain unfiltered.
+                    if max(abs(x), abs(y)) > 0.6 { self.onStickMove?(source, time) }
+                }
             }
         }
         configureSystemButtons()
@@ -166,7 +177,42 @@ import InputCore
         }
     }
 
+    // Four 90-degree sectors. Exact diagonals choose the horizontal direction.
+    // Keep Apple's button activation threshold; analog packet values are never filtered here.
+    nonisolated private static func pressedDirection(
+        for source: InputSource, stick: GCControllerDirectionPad
+    ) -> InputSource? {
+        let x = stick.xAxis.value
+        let y = stick.yAxis.value
+        guard x.isFinite, y.isFinite, x != 0 || y != 0 else { return nil }
+        if abs(x) >= abs(y) {
+            if x > 0, stick.right.isPressed {
+                return source == .leftStick ? .leftStickRight : .rightStickRight
+            }
+            if x < 0, stick.left.isPressed {
+                return source == .leftStick ? .leftStickLeft : .rightStickLeft
+            }
+        } else {
+            if y > 0, stick.up.isPressed {
+                return source == .leftStick ? .leftStickUp : .rightStickUp
+            }
+            if y < 0, stick.down.isPressed {
+                return source == .leftStick ? .leftStickDown : .rightStickDown
+            }
+        }
+        return nil
+    }
+
     func buttonValues() -> [InputSource: Bool] {
-        Dictionary(uniqueKeysWithValues: sourceButtons.map { ($0.0, $0.1?.isPressed ?? false) })
+        let directions = Set(
+            stickInputs.compactMap { Self.pressedDirection(for: $0.0, stick: $0.1) })
+        return Dictionary(
+            uniqueKeysWithValues: sourceButtons.map { source, button in
+                (
+                    source,
+                    source.stickSource == nil
+                        ? button?.isPressed ?? false : directions.contains(source)
+                )
+            })
     }
 }

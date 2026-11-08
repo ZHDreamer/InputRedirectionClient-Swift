@@ -75,4 +75,12 @@ public enum InputSource: String, CaseIterable {
     case capture = "Capture"
 
     public var isStick: Bool { self == .leftStick || self == .rightStick }
+    public var stickSource: InputSource? {
+        switch self {
+        case .leftStickUp, .leftStickDown, .leftStickLeft, .leftStickRight: return .leftStick
+        case .rightStickUp, .rightStickDown, .rightStickLeft, .rightStickRight: return .rightStick
+        default: return nil
+        }
+    }
+
 }

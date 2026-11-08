@@ -38,7 +38,8 @@ final class StickDirectionTests: XCTestCase {
         client.mapping[.b] = .rightStickRight
         gamepad.rightThumbstick.setValueForXAxis(1, yAxis: 1)
         XCTAssertEqual(
-            client.inputFrame().buttons & 3, 3, "Diagonals must allow simultaneous buttons")
+            client.inputFrame().buttons & 3, 2,
+            "Exact diagonals must choose one horizontal direction")
         gamepad.rightThumbstick.setValueForXAxis(0, yAxis: 0)
         XCTAssertEqual(client.inputFrame().buttons & 3, 0)
         client.mapping[.cStick] = InputSource.none
@@ -87,6 +88,82 @@ final class StickDirectionTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertTrue(client.pressedSources.contains(.rightStickUp))
         XCTAssertTrue(client.pressed.contains(.x))
+    }
+
+    @MainActor func testNinetyDegreeSectorsAcrossBothSticks() {
+        let name = "StickSectors.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        let gamepad = controller.extendedGamepad!
+        let sticks: [(GCControllerDirectionPad, [InputSource])] = [
+            (
+                gamepad.leftThumbstick,
+                [.leftStickRight, .leftStickUp, .leftStickLeft, .leftStickDown]
+            ),
+            (
+                gamepad.rightThumbstick,
+                [.rightStickRight, .rightStickUp, .rightStickLeft, .rightStickDown]
+            ),
+        ]
+        for (stick, directions) in sticks {
+            client.mapping[.a] = directions[0]
+            client.mapping[.b] = directions[1]
+            client.mapping[.x] = directions[2]
+            client.mapping[.y] = directions[3]
+            for degree in 0..<360 where degree % 90 != 45 {
+                let angle = Double(degree) * .pi / 180
+                stick.setValueForXAxis(Float(cos(angle)), yAxis: Float(sin(angle)))
+                let expected: UInt32
+                switch degree {
+                case 0..<45, 316..<360: expected = 1
+                case 46..<135: expected = 1 << 1
+                case 136..<225: expected = 1 << 10
+                default: expected = 1 << 11
+                }
+                XCTAssertEqual(
+                    client.inputFrame().buttons, expected, "Incorrect sector at \(degree) degrees")
+            }
+            for (x, y, expected): (Float, Float, UInt32) in [
+                (1, 1, 1), (1, -1, 1), (-1, 1, 1 << 10), (-1, -1, 1 << 10),
+                (1, -0.1, 1), (0.1, -1, 1 << 11),
+            ] {
+                stick.setValueForXAxis(x, yAxis: y)
+                XCTAssertEqual(client.inputFrame().buttons, expected)
+            }
+            stick.setValueForXAxis(0, yAxis: 0)
+            XCTAssertEqual(client.inputFrame().buttons, 0)
+        }
+    }
+
+    @MainActor func testListeningAndPreviewUseDominantDirection() async throws {
+        let name = "StickSectorCapture.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        let stick = controller.extendedGamepad!.rightThumbstick
+        client.beginMapping(.a)
+        stick.setValueForXAxis(1, yAxis: -0.1)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(client.mapping[.a], .rightStickRight)
+        XCTAssertTrue(client.pressedSources.contains(.rightStickRight))
+        XCTAssertFalse(client.pressedSources.contains(.rightStickDown))
+        stick.setValueForXAxis(0.1, yAxis: -1)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(client.pressedSources.contains(.rightStickRight))
+        XCTAssertTrue(client.pressedSources.contains(.rightStickDown))
+        XCTAssertEqual(client.inputFrame().buttons & 1, 0)
+        stick.setValueForXAxis(0, yAxis: 0)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(client.pressedSources.contains(.rightStickDown))
     }
 
     @MainActor func testMissingStickDirectionsAreHidden() {
