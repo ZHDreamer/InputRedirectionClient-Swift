@@ -29,11 +29,11 @@ final class StickMappingTests: XCTestCase {
         expected.leftY = -1
         expected.rightY = 0.5
         XCTAssertEqual(client.inputFrame().encoded(), expected.encoded())
-        let restored = Client(preferences: preferences, controllerProvider: { [] })
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
         XCTAssertEqual(restored.mapping[.circlePad], .rightStick)
         XCTAssertEqual(restored.mapping[.cStick], .leftStick)
         client.restoreDefaults()
-        let reset = Client(preferences: preferences, controllerProvider: { [] })
+        let reset = Client(preferences: preferences, controllerProvider: { [controller] })
         XCTAssertEqual(reset.mapping[.circlePad], .leftStick)
         XCTAssertEqual(reset.mapping[.cStick], .rightStick)
     }

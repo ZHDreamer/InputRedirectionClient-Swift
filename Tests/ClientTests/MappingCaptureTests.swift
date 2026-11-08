@@ -38,7 +38,7 @@ final class MappingCaptureTests: XCTestCase {
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(client.mapping[.circlePad], .rightStick)
         XCTAssertNil(client.mappingTarget)
-        let restored = Client(preferences: preferences, controllerProvider: { [] })
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
         XCTAssertEqual(restored.mapping[.x], InputSource.a)
         XCTAssertEqual(restored.mapping[.circlePad], .rightStick)
         client.beginMapping(.power)

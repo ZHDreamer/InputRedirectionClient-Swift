@@ -13,7 +13,9 @@ import InputCore
     @Published var status = "Not sending"
     @Published var pressed: Set<InputTarget> = []
     @Published var pressedSources: Set<InputSource> = []
-    @Published var invertY = false
+    @Published var invertY = false {
+        didSet { if invertY != oldValue { saveCurrentProfile() } }
+    }
     @Published private(set) var mappingTarget: InputTarget?
     @Published private(set) var home = false
     @Published private(set) var powerAction: PowerAction?
@@ -21,7 +23,7 @@ import InputCore
         didSet {
             guard sendRate != oldValue else { return }
             scheduleInputTimer()
-            preferences.set(sendRate, forKey: "sendRate")
+            saveCurrentProfile()
             if sending { status = "Sending to \(address):4950 · \(sendRate) Hz" }
         }
     }
@@ -38,6 +40,9 @@ import InputCore
     private var timer: Timer?
     private var sendingActivity: NSObjectProtocol?
     private var observers: [NSObjectProtocol] = []
+    private let profileStore: ControllerProfileStore
+    private var activeProfileKey: String?
+    private var isLoadingProfile = false
     private let preferences: UserDefaults
     private let controllerProvider: () -> [GCController]
     private let socketFactory: () throws -> Int32
@@ -50,11 +55,10 @@ import InputCore
         // Continue receiving controller events when another app has focus.
         GCController.shouldMonitorBackgroundEvents = true
         self.preferences = preferences
+        profileStore = ControllerProfileStore(preferences: preferences)
         self.controllerProvider = controllerProvider
         self.socketFactory = socketFactory
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
-        invertY = preferences.bool(forKey: "invertY")
-        sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 120))
         controllerInput.onButtonPress = { [weak self] source, time in
             self?.captureButton(source, at: time)
         }
@@ -66,7 +70,7 @@ import InputCore
             self.updatePreview()
         }
         observeLifecycle()
-        loadMappings()
+        useProfile(for: nil)
         refresh()
     }
 
@@ -87,6 +91,7 @@ import InputCore
     private func configureController() {
         cancelMapping()
         controllerInput.configure(currentController)
+        useProfile(for: currentController)
         objectWillChange.send()
         updatePreview()
     }
@@ -98,11 +103,14 @@ import InputCore
     }
 
     func refresh() {
+        let previous = currentController
         controllers = controllerProvider().filter {
             let profile = $0.physicalInputProfile
             return !profile.buttons.isEmpty || !profile.dpads.isEmpty
         }
-        selected = min(selected, max(0, controllers.count - 1))
+        selected =
+            controllers.firstIndex { $0 === previous }
+            ?? min(selected, max(0, controllers.count - 1))
     }
 
     func availableSources(for target: InputTarget) -> [InputSource] {
@@ -122,6 +130,7 @@ import InputCore
                 $0.key.sources.contains($0.value) && defaults[$0.key] != $0.value
             }
             updatePreview()
+            saveCurrentProfile()
         }
     }
 
@@ -155,25 +164,30 @@ import InputCore
         save()
     }
 
-    private func loadMappings() {
-        let saved = preferences.dictionary(forKey: "mappingOverrides") as? [String: String] ?? [:]
-        for (key, value) in saved {
-            guard let target = InputTarget(rawValue: key),
-                let source = InputSource(rawValue: value),
-                target.sources.contains(source)
-            else { continue }
-            mappingOverrides[target] = source
-        }
+    private func useProfile(for controller: GCController?) {
+        let key = ControllerProfileStore.key(for: controller)
+        guard activeProfileKey != key else { return }
+        saveCurrentProfile()
+        let profile = profileStore.load(for: key)
+        isLoadingProfile = true
+        activeProfileKey = key
+        mappingOverrides = profile.mappingOverrides
+        invertY = profile.invertY
+        sendRate = profile.sendRate
+        isLoadingProfile = false
+    }
+
+    private func saveCurrentProfile() {
+        guard !isLoadingProfile, let key = activeProfileKey else { return }
+        profileStore.save(
+            ControllerProfile(
+                mappingOverrides: mappingOverrides, invertY: invertY, sendRate: sendRate),
+            for: key)
     }
 
     func save() {
-        let d = preferences
-        d.set(address, forKey: "address")
-        d.set(
-            Dictionary(
-                uniqueKeysWithValues: mappingOverrides.map { ($0.key.rawValue, $0.value.rawValue) }),
-            forKey: "mappingOverrides")
-        d.set(invertY, forKey: "invertY")
+        preferences.set(address, forKey: "address")
+        saveCurrentProfile()
     }
 
     private func observeLifecycle() {

@@ -9,8 +9,13 @@ final class PowerTests: XCTestCase {
     @MainActor func testPowerButtonAndControllerMappingsSendAndRelease() async throws {
         let name = "InputRedirectionPowerTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
-        preferences.set(["Power (Long)": "B"], forKey: "mappingOverrides")
         let controller = GCController.withExtendedGamepad()
+        preferences.set(
+            [
+                ControllerProfileStore.key(for: controller): [
+                    "mappingOverrides": ["Power (Long)": "B"]
+                ]
+            ], forKey: "controllerProfiles")
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
         defer {
             client.stop()
@@ -25,7 +30,7 @@ final class PowerTests: XCTestCase {
         XCTAssertNil(InputTarget(rawValue: "Power (Long)"))
         client.mapping[.power] = InputSource.a
         client.save()
-        let restored = Client(preferences: preferences, controllerProvider: { [] })
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
         XCTAssertEqual(restored.mapping[.power], InputSource.a)
 
         let receiver = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)

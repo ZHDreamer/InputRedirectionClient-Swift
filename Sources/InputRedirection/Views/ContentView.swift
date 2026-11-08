@@ -115,7 +115,7 @@ struct ContentView: View {
                     } maximumValueLabel: {
                         Text("250 Hz")
                     }
-                    Text("Changes apply immediately and are saved automatically.")
+                    Text("Changes apply immediately and are saved for this controller.")
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
                     Text(
@@ -128,6 +128,5 @@ struct ContentView: View {
             )
             .font(.caption).foregroundStyle(.secondary)
         }.padding(24).frame(minWidth: 720, minHeight: 620)
-            .onChange(of: client.invertY) { _ in client.save() }
     }
 }

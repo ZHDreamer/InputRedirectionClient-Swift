@@ -11,10 +11,14 @@ final class MappingEnumTests: XCTestCase {
         defer { preferences.removePersistentDomain(forName: name) }
         preferences.set(
             [
-                "Home": "Capture", "D-Pad Up": "A", "A": "B", "Power (Long)": "Y",
-                "B": "Unknown", "X": "Left Stick", "Circle Pad": "Right Stick",
-                "C-Stick": "Left Stick",
-            ], forKey: "mappingOverrides")
+                ControllerProfileStore.key(for: nil): [
+                    "mappingOverrides": [
+                        "Home": "Capture", "D-Pad Up": "A", "A": "B", "Power (Long)": "Y",
+                        "B": "Unknown", "X": "Left Stick", "Circle Pad": "Right Stick",
+                        "C-Stick": "Left Stick",
+                    ]
+                ]
+            ], forKey: "controllerProfiles")
         let client = Client(preferences: preferences, controllerProvider: { [] })
         defer { client.stop() }
         XCTAssertEqual(client.mapping[.home], .capture)
@@ -29,7 +33,9 @@ final class MappingEnumTests: XCTestCase {
         XCTAssertEqual(client.mapping[.a], .b)
         XCTAssertEqual(client.mapping[.cStick], .rightStick)
         client.save()
-        let saved = preferences.dictionary(forKey: "mappingOverrides") as? [String: String]
+        let profiles = preferences.dictionary(forKey: "controllerProfiles")
+        let profile = profiles?[ControllerProfileStore.key(for: nil)] as? [String: Any]
+        let saved = profile?["mappingOverrides"] as? [String: String]
         XCTAssertEqual(saved?["Home"], "Capture")
         XCTAssertEqual(saved?["D-Pad Up"], "A")
         XCTAssertNil(saved?["Power (Long)"])
