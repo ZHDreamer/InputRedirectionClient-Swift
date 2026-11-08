@@ -96,7 +96,9 @@ import InputCore
                     source,
                     ButtonMetadata(
                         label: element?.localizedName ?? source.rawValue,
-                        symbol: element?.sfSymbolsName, available: source == .none || element != nil
+                        symbol: ControllerSymbolResolver.symbol(
+                            for: element, productCategory: controller?.productCategory ?? ""),
+                        available: source == .none || element != nil
                     )
                 )
             })

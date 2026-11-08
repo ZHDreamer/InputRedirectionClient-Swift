@@ -34,6 +34,10 @@ final class PhysicalProfileTests: XCTestCase {
         XCTAssertEqual(client.layout, .nintendo)
         XCTAssertTrue(client.sourceIsAvailable(.a))
         XCTAssertTrue(client.sourceIsAvailable(.leftStick))
+        XCTAssertEqual(client.sourceSymbol(.rightStickUp), "circle.grid.cross.up.filled")
+        XCTAssertEqual(client.sourceSymbol(.rightStickDown), "circle.grid.cross.down.filled")
+        XCTAssertEqual(client.sourceSymbol(.rightStickLeft), "circle.grid.cross.left.filled")
+        XCTAssertEqual(client.sourceSymbol(.rightStickRight), "circle.grid.cross.right.filled")
         let gamepad = snapshot.extendedGamepad!
         gamepad.buttonA.setValue(1)
         gamepad.leftThumbstick.setValueForXAxis(0.5, yAxis: -1)
