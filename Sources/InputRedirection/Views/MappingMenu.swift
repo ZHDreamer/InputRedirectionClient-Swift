@@ -28,7 +28,7 @@ struct MappingMenu: NSViewRepresentable {
         button.image = image
         button.imagePosition = image == nil ? .noImage : .imageOnly
         button.toolTip =
-            "\(target.rawValue): \(name). Open to choose or listen for controller input. Sending stops while mapping."
+            "\(target.rawValue): \(name). Open to choose or listen for controller input. Input is paused while mapping."
         button.setAccessibilityLabel("Map \(target.rawValue): \(name)")
     }
 

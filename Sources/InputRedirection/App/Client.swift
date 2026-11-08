@@ -32,6 +32,7 @@ import InputCore
 
     @Published private var mappingOverrides: [InputTarget: InputSource] = [:]
     private var mappingStartedAt = 0.0
+    private var mappingInputSuppressed = false
     private let controllerInput = ControllerInput()
     enum PowerAction { case press, longPress }
     private enum PulseButton { case home, power }
@@ -136,12 +137,21 @@ import InputCore
     }
 
     func beginMapping(_ target: InputTarget) {
-        stop()
+        cancelButtonActions()
+        home = false
+        touch = nil
+        mappingInputSuppressed = sending
         mappingStartedAt = ProcessInfo.processInfo.systemUptime
         mappingTarget = target
+        tick()
     }
 
-    func cancelMapping() { mappingTarget = nil }
+    func cancelMapping() {
+        mappingTarget = nil
+        if mappingInputSuppressed && !controllerInput.buttonValues().values.contains(true) {
+            mappingInputSuppressed = false
+        }
+    }
 
     private func captureButton(_ source: InputSource, at time: Double) {
         guard let target = mappingTarget, !target.isStick, time >= mappingStartedAt else { return }
@@ -234,7 +244,7 @@ import InputCore
         _ button: PulseButton, press: (Client) -> Void,
         release: @escaping (Client) -> Void
     ) {
-        guard sending else { return }
+        guard sending, !mappingInputSuppressed else { return }
         releaseTasks[button]?.cancel()
         press(self)
         tick()
@@ -259,8 +269,11 @@ import InputCore
         let values = values ?? controllerInput.buttonValues()
         let currentMapping = currentMapping ?? mapping
         let sources = Set(values.filter { $0.value }.map { $0.key })
-        let targets = Set(
-            InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
+        let targets: Set<InputTarget> =
+            mappingInputSuppressed
+            ? []
+            : Set(
+                InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
         // @Published emits even for equal values. Avoid redrawing at the send rate.
         if pressedSources != sources { pressedSources = sources }
         if pressed != targets { pressed = targets }
@@ -268,6 +281,14 @@ import InputCore
     func inputFrame() -> InputFrame {
         var state = InputFrame()
         let values = controllerInput.buttonValues()
+        if mappingInputSuppressed {
+            if mappingTarget != nil || values.values.contains(true) {
+                updatePreview(values: values)
+                return state
+            }
+            // Do not forward the press or stick movement used to assign a mapping.
+            mappingInputSuppressed = false
+        }
         let circle = controllerInput.stick(mapping[.circlePad] ?? .none)
         let c = controllerInput.stick(mapping[.cStick] ?? .none)
         state.leftX = Double(circle?.xAxis.value ?? 0)
@@ -343,6 +364,7 @@ import InputCore
     }
     func stop() {
         cancelMapping()
+        mappingInputSuppressed = false
         if let sendingActivity {
             ProcessInfo.processInfo.endActivity(sendingActivity)
             self.sendingActivity = nil
