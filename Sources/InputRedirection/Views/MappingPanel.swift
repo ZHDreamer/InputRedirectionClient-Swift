@@ -46,9 +46,11 @@ struct MappingPanel: View {
     }
 
     private func stickPicker(_ target: InputTarget) -> some View {
-        GroupBox(target.rawValue) {
+        GroupBox {
             MappingMenu(client: client, target: target)
                 .frame(height: 26).padding(6)
+        } label: {
+            Text(target.rawValue)
         }.frame(maxWidth: .infinity)
     }
 

@@ -22,3 +22,23 @@ struct ControllerButtonLabel: View {
         }
     }
 }
+
+struct TargetButtonLabel: View {
+    let target: InputTarget
+
+    var body: some View {
+        Group {
+            if let symbol = target.defaultSymbol {
+                Image(systemName: symbol)
+            } else {
+                Text(target.rawValue)
+                    .font(.system(size: 9, weight: .medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .overlay(Capsule().strokeBorder(lineWidth: 1))
+            }
+        }
+        .accessibilityLabel(target.rawValue)
+        .help(target.rawValue)
+    }
+}

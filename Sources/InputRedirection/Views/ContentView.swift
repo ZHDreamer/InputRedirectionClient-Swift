@@ -77,9 +77,14 @@ struct ContentView: View {
                             }.frame(height: 24)
                             Text("3DS Output").font(.headline)
                             let output = InputTarget.allCases.filter { client.pressed.contains($0) }
-                                .map(\.rawValue).joined(separator: " · ")
-                            Text(output.isEmpty ? "—" : output)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 8) {
+                                    if output.isEmpty { Text("—") }
+                                    ForEach(output, id: \.self) { target in
+                                        TargetButtonLabel(target: target)
+                                    }
+                                }
+                            }.frame(height: 24)
                             HStack(spacing: 10) {
                                 Button(InputTarget.home.rawValue) { client.triggerHome() }
                                     .help("Send a HOME press")

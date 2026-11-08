@@ -99,7 +99,14 @@ import InputCore
         updatePreview()
     }
 
-    func sourceSymbol(_ source: InputSource) -> String? { controllerInput.sourceSymbol(source) }
+    func sourceSymbol(_ source: InputSource) -> String? {
+        if let symbol = controllerInput.sourceSymbol(source),
+            NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil
+        {
+            return symbol
+        }
+        return source.defaultSymbol
+    }
     func sourceLabel(_ source: InputSource) -> String { controllerInput.sourceLabel(source) }
     func sourceIsAvailable(_ source: InputSource) -> Bool {
         controllerInput.sourceIsAvailable(source)
@@ -272,11 +279,33 @@ import InputCore
         let values = values ?? controllerInput.buttonValues()
         let currentMapping = currentMapping ?? mapping
         let sources = Set(values.filter { $0.value }.map { $0.key })
-        let targets: Set<InputTarget> =
-            mappingInputSuppressed
-            ? []
-            : Set(
+        var targets: Set<InputTarget> = []
+        if !mappingInputSuppressed {
+            targets = Set(
                 InputTarget.allCases.filter { values[currentMapping[$0] ?? .none] ?? false })
+            for target in InputTarget.allCases where target.isStick {
+                guard let stick = controllerInput.stick(currentMapping[target] ?? .none),
+                    stick.up.isPressed || stick.down.isPressed
+                        || stick.left.isPressed || stick.right.isPressed
+                else { continue }
+                let x = stick.xAxis.value
+                let y = stick.yAxis.value * (invertY ? -1 : 1)
+                guard x.isFinite, y.isFinite, x != 0 || y != 0 else { continue }
+                let direction: InputTarget
+                if abs(x) >= abs(y) {
+                    direction =
+                        target == .circlePad
+                        ? (x > 0 ? .circlePadRight : .circlePadLeft)
+                        : (x > 0 ? .cStickRight : .cStickLeft)
+                } else {
+                    direction =
+                        target == .circlePad
+                        ? (y > 0 ? .circlePadUp : .circlePadDown)
+                        : (y > 0 ? .cStickUp : .cStickDown)
+                }
+                targets.insert(direction)
+            }
+        }
         // @Published emits even for equal values. Avoid redrawing at the send rate.
         if pressedSources != sources { pressedSources = sources }
         if pressed != targets { pressed = targets }

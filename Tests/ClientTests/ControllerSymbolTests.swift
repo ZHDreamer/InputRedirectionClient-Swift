@@ -1,5 +1,6 @@
 import AppKit
 import GameController
+import InputCore
 import XCTest
 
 @testable import InputRedirection
@@ -21,6 +22,36 @@ private final class LocalizedButton: GCControllerButtonInput {
 }
 
 final class ControllerSymbolTests: XCTestCase {
+    @MainActor func testDefaultSymbolsAreAvailableAndSystemSymbolsTakePriority() {
+        for source in InputSource.allCases {
+            guard let symbol = source.defaultSymbol else {
+                XCTFail("Missing default for \(source)")
+                continue
+            }
+            XCTAssertNotNil(
+                NSImage(systemSymbolName: symbol, accessibilityDescription: nil), symbol)
+        }
+        for target in InputTarget.allCases where target != .start && target != .select {
+            XCTAssertNotNil(target.defaultSymbol, target.rawValue)
+            if let symbol = target.defaultSymbol {
+                XCTAssertNotNil(
+                    NSImage(systemSymbolName: symbol, accessibilityDescription: nil), symbol)
+            }
+        }
+        XCTAssertNil(InputTarget.start.defaultSymbol)
+        XCTAssertNil(InputTarget.select.defaultSymbol)
+        let name = "DefaultSymbols.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        defer { preferences.removePersistentDomain(forName: name) }
+        let controller = GCController.withExtendedGamepad()
+        controller.extendedGamepad!.buttonA.sfSymbolsName = "triangle.circle"
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer { client.stop() }
+        XCTAssertEqual(client.sourceSymbol(.a), "triangle.circle")
+        let offline = Client(preferences: preferences, controllerProvider: { [] })
+        XCTAssertEqual(offline.sourceSymbol(.a), "a.circle")
+    }
+
     @MainActor func testN64DirectionIconsIgnoreLocalizedNames() throws {
         let controller = GCController.withExtendedGamepad()
         let stick = try XCTUnwrap(controller.extendedGamepad).rightThumbstick

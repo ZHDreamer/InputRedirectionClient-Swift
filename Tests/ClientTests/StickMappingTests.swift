@@ -5,6 +5,46 @@ import XCTest
 @testable import InputRedirection
 
 final class StickMappingTests: XCTestCase {
+    @MainActor func testOutputPreviewIncludesMappedSticks() {
+        let name = "StickPreviewTests.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        let gamepad = controller.extendedGamepad!
+        gamepad.leftThumbstick.setValueForXAxis(1, yAxis: 0)
+        _ = client.inputFrame()
+        XCTAssertEqual(client.pressed, [.circlePadRight])
+        client.mapping[.cStick] = .leftStick
+        XCTAssertEqual(client.pressed, [.circlePadRight, .cStickRight])
+        gamepad.leftThumbstick.setValueForXAxis(0, yAxis: 0)
+        _ = client.inputFrame()
+        XCTAssertTrue(client.pressed.isEmpty)
+        client.mapping[.circlePad] = .dpad
+        gamepad.dpad.setValueForXAxis(0, yAxis: -1)
+        _ = client.inputFrame()
+        XCTAssertTrue(client.pressed.contains(.circlePadDown))
+        client.invertY = true
+        _ = client.inputFrame()
+        XCTAssertTrue(client.pressed.contains(.circlePadUp))
+        XCTAssertFalse(client.pressed.contains(.circlePadDown))
+        for (x, y, expected): (Float, Float, InputTarget) in [
+            (-1, 0, .circlePadLeft), (1, 0, .circlePadRight),
+            (0, 1, .circlePadDown), (0, -1, .circlePadUp),
+        ] {
+            gamepad.dpad.setValueForXAxis(x, yAxis: y)
+            _ = client.inputFrame()
+            XCTAssertTrue(client.pressed.contains(expected))
+        }
+        client.mapping[.circlePad] = InputSource.none
+        XCTAssertFalse(client.pressed.contains(.circlePadUp))
+        client.mapping[.circlePadUp] = .a
+        XCTAssertNil(client.mapping[.circlePadUp], "Preview directions are not separate mappings")
+    }
+
     @MainActor func testDpadRoutesToBothSticksAndCanBeCaptured() async throws {
         let name = "DpadMappingTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

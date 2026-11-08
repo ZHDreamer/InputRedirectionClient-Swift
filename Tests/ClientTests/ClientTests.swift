@@ -41,8 +41,9 @@ final class ClientTests: XCTestCase {
         XCTAssertEqual(client.mapping[.home], InputSource.a)
         controller.extendedGamepad!.buttonA.sfSymbolsName = nil
         client.refresh()
-        XCTAssertNil(
-            client.sourceSymbol(InputSource.a), "Do not invent a symbol when Apple supplies none")
+        XCTAssertEqual(
+            client.sourceSymbol(InputSource.a), "a.circle",
+            "Use the Nintendo-style fallback when Apple supplies no symbol")
         XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
     }
 
