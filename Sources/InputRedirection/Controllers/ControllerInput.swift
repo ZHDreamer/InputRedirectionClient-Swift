@@ -92,6 +92,7 @@ import InputCore
     private struct ButtonMetadata: Equatable {
         var label: String
         var symbol: String?
+        var asset: String?
         var available: Bool
     }
     private var buttonMetadata: [InputSource: ButtonMetadata] = [:]
@@ -110,6 +111,8 @@ import InputCore
                     ButtonMetadata(
                         label: element?.localizedName ?? source.rawValue,
                         symbol: ControllerSymbolResolver.symbol(
+                            for: element, productCategory: controller?.productCategory ?? ""),
+                        asset: ControllerSymbolResolver.asset(
                             for: element, productCategory: controller?.productCategory ?? ""),
                         available: source == .none || element != nil
                     )
@@ -177,6 +180,9 @@ import InputCore
             systemButtonPreferences.append((button, button.preferredSystemGestureState))
             button.preferredSystemGestureState = .disabled
         }
+    }
+    func sourceAsset(_ source: InputSource) -> String? {
+        buttonMetadata[source]?.asset
     }
     func sourceSymbol(_ source: InputSource) -> String? {
         buttonMetadata[source]?.symbol

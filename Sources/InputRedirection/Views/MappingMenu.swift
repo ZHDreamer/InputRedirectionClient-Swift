@@ -21,9 +21,7 @@ struct MappingMenu: NSViewRepresentable {
     func updateNSView(_ button: NSButton, context: Context) {
         let source = client.mapping[target] ?? .none
         let name = client.sourceLabel(source)
-        let image = client.sourceSymbol(source).flatMap {
-            NSImage(systemSymbolName: $0, accessibilityDescription: name)
-        }
+        let image = client.sourceImage(source)
         button.title = image == nil ? name : ""
         button.image = image
         button.imagePosition = image == nil ? .noImage : .imageOnly
@@ -69,9 +67,7 @@ struct MappingMenu: NSViewRepresentable {
                     title: name, action: #selector(selectInput(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = source
-                if let symbol = client.sourceSymbol(source) {
-                    item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: name)
-                }
+                item.image = client.sourceImage(source)
                 let selected = client.mapping[target] ?? .none
                 item.state = selected == source ? .on : .off
                 menu.addItem(item)

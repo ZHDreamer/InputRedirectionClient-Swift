@@ -8,10 +8,8 @@ struct ControllerButtonLabel: View {
 
     var body: some View {
         let name = client.sourceLabel(source)
-        if let symbol = client.sourceSymbol(source),
-            NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil
-        {
-            Image(systemName: symbol)
+        if let image = client.sourceImage(source) {
+            Image(nsImage: image)
                 .accessibilityLabel(Text(name))
                 .help(name)
         } else {

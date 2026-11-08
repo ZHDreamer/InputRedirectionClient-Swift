@@ -23,6 +23,7 @@ iconutil --convert icns "$STAGING_DIR/AppIcon.iconset" \
 # Never overwrite signed code in place: use a fresh inode and sign the complete
 # staged bundle before replacing the previous build (Apple: Updating Mac Software).
 cp "$BIN_DIR/InputRedirection" "$STAGED_APP/Contents/MacOS/"
+cp -R "$BIN_DIR/InputRedirection_InputRedirection.bundle" "$STAGED_APP/Contents/Resources/"
 cp Resources/Info.plist "$STAGED_APP/Contents/Info.plist"
 codesign --force --sign - "$STAGED_APP"
 codesign --verify --deep --strict "$STAGED_APP"

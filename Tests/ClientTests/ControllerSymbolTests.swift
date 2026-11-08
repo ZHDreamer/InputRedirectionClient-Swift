@@ -22,6 +22,31 @@ private final class LocalizedButton: GCControllerButtonInput {
 }
 
 final class ControllerSymbolTests: XCTestCase {
+    @MainActor func testDualSenseAssetsUseStableAliasesAndLoadAsTemplates() throws {
+        for (alias, asset) in [
+            (GCInputButtonOptions, "Playstation_create_outline"),
+            (GCInputButtonMenu, "Playstation_options_outline"),
+        ] {
+            let button = LocalizedButton(aliases: [alias])
+            for name in ["Create", "Options", "分享", "选项"] {
+                button.localizedName = name
+                XCTAssertEqual(
+                    ControllerSymbolResolver.asset(for: button, productCategory: "DualSense"), asset
+                )
+                XCTAssertNil(
+                    ControllerSymbolResolver.asset(for: button, productCategory: "DualShock 4"))
+                XCTAssertNil(
+                    ControllerSymbolResolver.asset(for: button, productCategory: "Xbox One"))
+            }
+            let image = try XCTUnwrap(ControllerSymbolResolver.image(named: asset))
+            XCTAssertTrue(image.isTemplate)
+            XCTAssertEqual(image.size, NSSize(width: 24, height: 24))
+            XCTAssertNotNil(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+            XCTAssertTrue(image === ControllerSymbolResolver.image(named: asset))
+        }
+        XCTAssertNil(ControllerSymbolResolver.image(named: "MissingIcon"))
+    }
+
     @MainActor func testDefaultSymbolsAreAvailableAndSystemSymbolsTakePriority() {
         for source in InputSource.allCases {
             guard let symbol = source.defaultSymbol else {

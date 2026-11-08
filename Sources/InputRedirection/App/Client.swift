@@ -99,6 +99,17 @@ import InputCore
         updatePreview()
     }
 
+    func sourceImage(_ source: InputSource) -> NSImage? {
+        if let asset = controllerInput.sourceAsset(source),
+            let image = ControllerSymbolResolver.image(named: asset)
+        {
+            return image
+        }
+        return sourceSymbol(source).flatMap {
+            NSImage(systemSymbolName: $0, accessibilityDescription: sourceLabel(source))
+        }
+    }
+
     func sourceSymbol(_ source: InputSource) -> String? {
         if let symbol = controllerInput.sourceSymbol(source),
             NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil
