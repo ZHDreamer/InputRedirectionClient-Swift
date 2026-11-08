@@ -102,8 +102,14 @@ import InputCore
         selected = min(selected, max(0, controllers.count - 1))
     }
 
+    func availableSources(for target: InputTarget) -> [InputSource] {
+        target.sources.filter { sourceIsAvailable($0) }
+    }
+
     var defaultMapping: [InputTarget: InputSource] {
-        layout.defaultMapping()
+        let defaults = layout.defaultMapping()
+        guard currentController != nil else { return defaults }
+        return defaults.mapValues { sourceIsAvailable($0) ? $0 : .none }
     }
     var mapping: [InputTarget: InputSource] {
         get { defaultMapping.merging(mappingOverrides) { _, custom in custom } }

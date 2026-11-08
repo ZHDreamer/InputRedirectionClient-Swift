@@ -61,7 +61,7 @@ struct MappingMenu: NSViewRepresentable {
             hint.isEnabled = false
             menu.addItem(hint)
             menu.addItem(.separator())
-            let sources = target.sources
+            let sources = client.availableSources(for: target)
             for source in sources {
                 let name = client.sourceLabel(source)
                 let item = NSMenuItem(
