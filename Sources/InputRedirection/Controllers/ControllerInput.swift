@@ -42,7 +42,7 @@ import InputCore
             case .capture: button = captureButton
             case .start: button = profile.buttons[GCInputButtonMenu]
             case .select: button = profile.buttons[GCInputButtonOptions]
-            case .none, .leftStick, .rightStick: button = nil
+            case .none, .dpad, .leftStick, .rightStick: button = nil
             }
             return (source, button)
         }
@@ -85,10 +85,8 @@ import InputCore
         let metadata = Dictionary(
             uniqueKeysWithValues: InputSource.allCases.map { source in
                 let element: GCControllerElement?
-                if source == .leftStick {
-                    element = stick(.leftStick)
-                } else if source == .rightStick {
-                    element = stick(.rightStick)
+                if source.isStick {
+                    element = stick(source)
                 } else {
                     element = elements[source] ?? nil
                 }
@@ -173,6 +171,7 @@ import InputCore
     func stick(_ source: InputSource) -> GCControllerDirectionPad? {
         guard let profile = controller?.physicalInputProfile else { return nil }
         switch source {
+        case .dpad: return profile.dpads[GCInputDirectionPad]
         case .leftStick: return profile.dpads[GCInputLeftThumbstick]
         case .rightStick: return profile.dpads[GCInputRightThumbstick]
         default: return nil
@@ -184,6 +183,7 @@ import InputCore
     nonisolated private static func pressedDirection(
         for source: InputSource, stick: GCControllerDirectionPad
     ) -> InputSource? {
+        guard source != .dpad else { return nil }
         let x = stick.xAxis.value
         let y = stick.yAxis.value
         guard x.isFinite, y.isFinite, x != 0 || y != 0 else { return nil }

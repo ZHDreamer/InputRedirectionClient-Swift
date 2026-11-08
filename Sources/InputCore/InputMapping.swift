@@ -53,12 +53,19 @@ public enum InputSource: String, CaseIterable {
     case r1 = "R"
     case l2 = "ZL"
     case r2 = "ZR"
+    case dpad = "D-Pad"
     case up = "D-Pad Up"
     case down = "D-Pad Down"
     case left = "D-Pad Left"
     case right = "D-Pad Right"
     case leftStick = "Left Stick"
     case rightStick = "Right Stick"
+    case l3 = "LS"
+    case r3 = "RS"
+    case start = "Start"
+    case select = "Select"
+    case home = "Home"
+    case capture = "Capture"
     case leftStickUp = "Left Stick Up"
     case leftStickDown = "Left Stick Down"
     case leftStickLeft = "Left Stick Left"
@@ -67,14 +74,8 @@ public enum InputSource: String, CaseIterable {
     case rightStickDown = "Right Stick Down"
     case rightStickLeft = "Right Stick Left"
     case rightStickRight = "Right Stick Right"
-    case l3 = "LS"
-    case r3 = "RS"
-    case start = "Start"
-    case select = "Select"
-    case home = "Home"
-    case capture = "Capture"
 
-    public var isStick: Bool { self == .leftStick || self == .rightStick }
+    public var isStick: Bool { self == .dpad || self == .leftStick || self == .rightStick }
     public var stickSource: InputSource? {
         switch self {
         case .leftStickUp, .leftStickDown, .leftStickLeft, .leftStickRight: return .leftStick

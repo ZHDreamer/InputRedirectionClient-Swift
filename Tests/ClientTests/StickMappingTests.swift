@@ -5,6 +5,42 @@ import XCTest
 @testable import InputRedirection
 
 final class StickMappingTests: XCTestCase {
+    @MainActor func testDpadRoutesToBothSticksAndCanBeCaptured() async throws {
+        let name = "DpadMappingTests.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        XCTAssertTrue(client.availableSources(for: .circlePad).contains(.dpad))
+        XCTAssertFalse(client.availableSources(for: .a).contains(.dpad))
+        client.mapping[.circlePad] = .dpad
+        client.mapping[.cStick] = .dpad
+        let dpad = controller.extendedGamepad!.dpad
+        for (x, y): (Float, Float) in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (0, 0)] {
+            dpad.setValueForXAxis(x, yAxis: y)
+            let frame = client.inputFrame()
+            XCTAssertEqual(frame.leftX, Double(x))
+            XCTAssertEqual(frame.leftY, Double(y))
+            XCTAssertEqual(frame.rightX, Double(x))
+            XCTAssertEqual(frame.rightY, Double(y))
+        }
+        client.invertY = true
+        client.beginMapping(.circlePad)
+        dpad.setValueForXAxis(0, yAxis: 1)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(client.mappingTarget)
+        XCTAssertEqual(client.mapping[.circlePad], .dpad)
+        XCTAssertEqual(client.inputFrame().leftY, -1)
+        XCTAssertTrue(client.pressedSources.contains(.up))
+        XCTAssertFalse(client.pressedSources.contains(.rightStickUp))
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
+        XCTAssertEqual(restored.mapping[.circlePad], .dpad)
+        XCTAssertEqual(restored.mapping[.cStick], .dpad)
+    }
+
     @MainActor func testStickAssignmentsRouteAxesAndPersist() {
         let name = "StickMappingTests.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

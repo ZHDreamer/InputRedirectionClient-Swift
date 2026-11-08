@@ -56,7 +56,8 @@ struct MappingMenu: NSViewRepresentable {
             menu.delegate = self
             let isStick = target.isStick
             let hint = NSMenuItem(
-                title: isStick ? "Move a stick or choose below" : "Press a button or choose below",
+                title: isStick
+                    ? "Move a stick or press the D-Pad" : "Press a button or choose below",
                 action: nil, keyEquivalent: "")
             hint.isEnabled = false
             menu.addItem(hint)
