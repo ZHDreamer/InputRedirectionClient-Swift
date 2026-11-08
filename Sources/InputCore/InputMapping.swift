@@ -112,6 +112,7 @@ public enum InputSource: String, CaseIterable {
     case select = "Select"
     case home = "Home"
     case capture = "Capture"
+    case touchpad = "Touchpad"
     case leftStickUp = "Left Stick Up"
     case leftStickDown = "Left Stick Down"
     case leftStickLeft = "Left Stick Left"
@@ -162,6 +163,7 @@ public enum InputSource: String, CaseIterable {
         case .select: return "minus.circle"
         case .home: return "house.circle"
         case .capture: return "circle.square"
+        case .touchpad: return "plus.rectangle"
         }
     }
 

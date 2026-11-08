@@ -18,7 +18,53 @@ private final class ProfileOnlyController: GCController {
     override var vendorName: String? { "N64 Controller" }
 }
 
+private final class TouchpadProfile: GCPhysicalInputProfile {
+    let button: GCControllerButtonInput
+
+    init(button: GCControllerButtonInput) {
+        self.button = button
+        super.init()
+    }
+
+    override var buttons: [String: GCControllerButtonInput] {
+        [GCInputDualShockTouchpadButton: button]
+    }
+}
+
 final class PhysicalProfileTests: XCTestCase {
+    @MainActor func testTouchpadClickCanBeCapturedMappedAndPersisted() async throws {
+        let name = "TouchpadProfile.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let snapshot = GCController.withExtendedGamepad()
+        let button = snapshot.extendedGamepad!.buttonA
+        button.localizedName = "Touchpad Button"
+        button.sfSymbolsName = "rectangle.roundedtop"
+        let controller = ProfileOnlyController(profile: TouchpadProfile(button: button))
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        XCTAssertTrue(client.availableSources(for: .home).contains(.touchpad))
+        XCTAssertFalse(client.availableSources(for: .circlePad).contains(.touchpad))
+        XCTAssertEqual(client.sourceLabel(.touchpad), "Touchpad Button")
+        XCTAssertEqual(client.sourceSymbol(.touchpad), "rectangle.roundedtop")
+        client.beginMapping(.home)
+        button.setValue(1)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(client.mappingTarget)
+        XCTAssertEqual(client.mapping[.home], .touchpad)
+        XCTAssertTrue(client.pressedSources.contains(.touchpad))
+        XCTAssertTrue(client.inputFrame().home)
+        button.setValue(0)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(client.pressedSources.contains(.touchpad))
+        XCTAssertFalse(client.inputFrame().home)
+        let restored = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer { restored.stop() }
+        XCTAssertEqual(restored.mapping[.home], .touchpad)
+    }
+
     @MainActor func testGenericProfileSupportsButtonsAndSticks() async throws {
         let name = "PhysicalProfile.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

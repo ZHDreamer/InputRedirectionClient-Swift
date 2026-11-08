@@ -40,6 +40,7 @@ import InputCore
             case .r3: button = profile.buttons[GCInputRightThumbstickButton]
             case .home: button = profile.buttons[GCInputButtonHome]
             case .capture: button = captureButton
+            case .touchpad: button = touchpadButton
             case .start: button = profile.buttons[GCInputButtonMenu]
             case .select: button = profile.buttons[GCInputButtonOptions]
             case .none, .dpad, .leftStick, .rightStick: button = nil
@@ -47,6 +48,20 @@ import InputCore
             return (source, button)
         }
     }
+    private var touchpadButton: GCControllerButtonInput? {
+        guard let controller else { return nil }
+        if let button = controller.physicalInputProfile.buttons[GCInputDualShockTouchpadButton] {
+            return button
+        }
+        if let gamepad = controller.extendedGamepad as? GCDualSenseGamepad {
+            return gamepad.touchpadButton
+        }
+        if let gamepad = controller.extendedGamepad as? GCDualShockGamepad {
+            return gamepad.touchpadButton
+        }
+        return nil
+    }
+
     private var captureButton: GCControllerButtonInput? {
         guard let controller else { return nil }
         // Xbox Share can be exposed on the specialized gamepad rather than the
@@ -156,7 +171,8 @@ import InputCore
     }
     private func configureSystemButtons() {
         releaseSystemButtons()
-        for (source, element) in sourceButtons where source == .home || source == .capture {
+        for (source, element) in sourceButtons
+        where source == .home || source == .capture || source == .touchpad {
             guard let button = element, button.isBoundToSystemGesture else { continue }
             systemButtonPreferences.append((button, button.preferredSystemGestureState))
             button.preferredSystemGestureState = .disabled

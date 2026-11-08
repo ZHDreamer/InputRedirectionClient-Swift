@@ -15,6 +15,8 @@ final class ControllerAvailabilityTests: XCTestCase {
             preferences.removePersistentDomain(forName: name)
         }
         XCTAssertFalse(client.sourceIsAvailable(.capture))
+        XCTAssertFalse(client.sourceIsAvailable(.touchpad))
+        XCTAssertFalse(client.availableSources(for: .home).contains(.touchpad))
         XCTAssertFalse(client.availableSources(for: .home).contains(.capture))
         XCTAssertTrue(client.availableSources(for: .home).contains(.none))
         XCTAssertTrue(client.availableSources(for: .a).contains(.a))
