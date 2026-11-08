@@ -19,7 +19,7 @@ import InputCore
     @Published private(set) var mappingTarget: InputTarget?
     @Published private(set) var home = false
     @Published private(set) var powerAction: PowerAction?
-    @Published var sendRate = 120 {
+    @Published var sendRate = 125 {
         didSet {
             guard sendRate != oldValue else { return }
             scheduleInputTimer()
@@ -59,7 +59,7 @@ import InputCore
         self.controllerProvider = controllerProvider
         self.socketFactory = socketFactory
         address = preferences.string(forKey: "address") ?? "192.168.1.100"
-        sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 120))
+        sendRate = min(250, max(50, preferences.object(forKey: "sendRate") as? Int ?? 125))
         controllerInput.onButtonPress = { [weak self] source, time in
             self?.captureButton(source, at: time)
         }
