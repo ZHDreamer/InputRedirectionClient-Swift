@@ -1,0 +1,39 @@
+name: Build release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build macOS app
+    runs-on: macos-26
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Build app
+        run: ./scripts/build-app.sh
+
+      - name: Package app
+        id: package
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          archive="InputRedirection-${version}-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent \
+            dist/InputRedirection.app "dist/${archive}"
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload app to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: gh release upload "$RELEASE_TAG" "dist/$ARCHIVE" --clobber
