@@ -22,39 +22,59 @@ private final class LocalizedButton: GCControllerButtonInput {
 }
 
 final class ControllerSymbolTests: XCTestCase {
-    @MainActor func testDualSenseAssetsUseStableAliasesAndLoadAsTemplates() throws {
-        for (alias, asset) in [
-            (GCInputButtonOptions, "Playstation_create_outline"),
-            (GCInputButtonMenu, "Playstation_options_outline"),
+    @MainActor func testImagesResolveAndFitFontLineHeightIndependently() throws {
+        let smallFont = NSFont.systemFont(ofSize: 11)
+        let largeFont = NSFont.systemFont(ofSize: 18)
+        for name in ["a.circle", "DualSense_options_outline"] {
+            let small = try XCTUnwrap(ControllerSymbolResolver.image(named: name, font: smallFont))
+            let originalSize = small.size
+            let large = try XCTUnwrap(ControllerSymbolResolver.image(named: name, font: largeFont))
+            for (image, font) in [(small, smallFont), (large, largeFont)] {
+                let lineHeight = ceil(NSLayoutManager().defaultLineHeight(for: font))
+                XCTAssertLessThanOrEqual(image.size.width, lineHeight)
+                XCTAssertLessThanOrEqual(image.size.height, lineHeight)
+                XCTAssertTrue(image.isTemplate)
+                XCTAssertNotNil(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+            }
+            XCTAssertEqual(small.size, originalSize)
+            XCTAssertFalse(small === large)
+            XCTAssertGreaterThan(large.size.height, small.size.height)
+            if name == "DualSense_options_outline" {
+                XCTAssertEqual(
+                    small.size.width / small.size.height,
+                    large.size.width / large.size.height, accuracy: 0.001)
+            }
+        }
+        XCTAssertNil(ControllerSymbolResolver.image(named: "MissingIcon", font: smallFont))
+    }
+
+    @MainActor func testDualSenseOverridesSupportCustomSymbols() throws {
+        for (alias, symbol) in [
+            (GCInputButtonOptions, "DualSense_create_outline"),
+            (GCInputButtonMenu, "DualSense_options_outline"),
         ] {
             let button = LocalizedButton(aliases: [alias])
             for name in ["Create", "Options", "分享", "选项"] {
                 button.localizedName = name
                 XCTAssertEqual(
-                    ControllerSymbolResolver.asset(for: button, productCategory: "DualSense"), asset
+                    ControllerSymbolResolver.symbol(
+                        for: button, productCategory: "DualSense"), symbol
                 )
-                XCTAssertNil(
-                    ControllerSymbolResolver.asset(for: button, productCategory: "DualShock 4"))
-                XCTAssertNil(
-                    ControllerSymbolResolver.asset(for: button, productCategory: "Xbox One"))
             }
-            let image = try XCTUnwrap(ControllerSymbolResolver.image(named: asset))
-            XCTAssertTrue(image.isTemplate)
-            XCTAssertEqual(image.size, NSSize(width: 24, height: 24))
-            XCTAssertNotNil(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
-            XCTAssertTrue(image === ControllerSymbolResolver.image(named: asset))
         }
-        XCTAssertNil(ControllerSymbolResolver.image(named: "MissingIcon"))
+        let font = NSFont.menuFont(ofSize: 0)
+        for name in ["DualSense_create_outline", "DualSense_options_outline"] {
+            let image = try XCTUnwrap(ControllerSymbolResolver.image(named: name, font: font))
+            XCTAssertTrue(image.isTemplate)
+        }
     }
 
     @MainActor func testDefaultSymbolsAreAvailableAndSystemSymbolsTakePriority() {
         for source in InputSource.allCases {
-            guard let symbol = source.defaultSymbol else {
-                XCTFail("Missing default for \(source)")
-                continue
-            }
             XCTAssertNotNil(
-                NSImage(systemSymbolName: symbol, accessibilityDescription: nil), symbol)
+                ControllerSymbolResolver.image(
+                    for: source, symbol: nil, font: .systemFont(ofSize: NSFont.systemFontSize)),
+                source.rawValue)
         }
         for target in InputTarget.allCases where target != .start && target != .select {
             XCTAssertNotNil(target.defaultSymbol, target.rawValue)
@@ -72,9 +92,12 @@ final class ControllerSymbolTests: XCTestCase {
         controller.extendedGamepad!.buttonA.sfSymbolsName = "triangle.circle"
         let client = Client(preferences: preferences, controllerProvider: { [controller] })
         defer { client.stop() }
-        XCTAssertEqual(client.sourceSymbol(.a), "triangle.circle")
+        assertSourceImage(client, .a, named: "triangle.circle")
+        controller.extendedGamepad!.buttonA.sfSymbolsName = "MissingSymbol"
+        client.refresh()
+        assertSourceImage(client, .a, named: "a.circle")
         let offline = Client(preferences: preferences, controllerProvider: { [] })
-        XCTAssertEqual(offline.sourceSymbol(.a), "a.circle")
+        assertSourceImage(offline, .a, named: "a.circle")
     }
 
     @MainActor func testN64DirectionIconsIgnoreLocalizedNames() throws {
@@ -139,4 +162,19 @@ final class ControllerSymbolTests: XCTestCase {
         XCTAssertNil(
             ControllerSymbolResolver.symbol(for: nil, productCategory: "Switch N64 Controller"))
     }
+}
+
+@MainActor func assertSourceImage(
+    _ client: Client, _ source: InputSource, named name: String,
+    file: StaticString = #filePath, line: UInt = #line
+) {
+    let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    guard let actual = client.sourceImage(source, font: font)?.tiffRepresentation,
+        let expected = ControllerSymbolResolver.image(named: name, font: font)?.tiffRepresentation
+    else {
+        XCTFail("Missing image for \(source.rawValue) or \(name)", file: file, line: line)
+        return
+    }
+    XCTAssertEqual(
+        actual, expected, "Unexpected image for \(source.rawValue)", file: file, line: line)
 }

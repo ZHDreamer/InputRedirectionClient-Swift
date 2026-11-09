@@ -131,40 +131,4 @@ public enum InputSource: String, CaseIterable {
         }
     }
 
-    public var defaultSymbol: String? {
-        switch self {
-        case .none: return "nosign"
-        case .a: return "a.circle"
-        case .b: return "b.circle"
-        case .x: return "x.circle"
-        case .y: return "y.circle"
-        case .l1: return "l.rectangle.roundedbottom"
-        case .r1: return "r.rectangle.roundedbottom"
-        case .l2: return "zl.rectangle.roundedtop"
-        case .r2: return "zr.rectangle.roundedtop"
-        case .dpad: return "dpad"
-        case .up: return "dpad.up.filled"
-        case .down: return "dpad.down.filled"
-        case .left: return "dpad.left.filled"
-        case .right: return "dpad.right.filled"
-        case .leftStick: return "l.joystick"
-        case .rightStick: return "r.joystick"
-        case .l3: return "l.joystick.press.down"
-        case .r3: return "r.joystick.press.down"
-        case .leftStickUp: return "l.joystick.tilt.up"
-        case .rightStickUp: return "r.joystick.tilt.up"
-        case .leftStickDown: return "l.joystick.tilt.down"
-        case .rightStickDown: return "r.joystick.tilt.down"
-        case .leftStickLeft: return "l.joystick.tilt.left"
-        case .rightStickLeft: return "r.joystick.tilt.left"
-        case .leftStickRight: return "l.joystick.tilt.right"
-        case .rightStickRight: return "r.joystick.tilt.right"
-        case .start: return "plus.circle"
-        case .select: return "minus.circle"
-        case .home: return "house.circle"
-        case .capture: return "circle.square"
-        case .touchpad: return "plus.rectangle"
-        }
-    }
-
 }

@@ -34,16 +34,14 @@ final class ClientTests: XCTestCase {
             preferences.removePersistentDomain(forName: name)
         }
         XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
-        XCTAssertEqual(client.sourceSymbol(InputSource.a), "b.circle")
+        assertSourceImage(client, InputSource.a, named: "b.circle")
         XCTAssertEqual(
             client.defaultMapping[.a], InputSource.b,
             "Display metadata must not change the brand defaults")
         XCTAssertEqual(client.mapping[.home], InputSource.a)
         controller.extendedGamepad!.buttonA.sfSymbolsName = nil
         client.refresh()
-        XCTAssertEqual(
-            client.sourceSymbol(InputSource.a), "a.circle",
-            "Use the Nintendo-style fallback when Apple supplies no symbol")
+        assertSourceImage(client, .a, named: "a.circle")
         XCTAssertEqual(client.sourceLabel(InputSource.a), "System Button Name")
     }
 

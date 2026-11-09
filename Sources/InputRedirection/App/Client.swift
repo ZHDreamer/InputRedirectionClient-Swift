@@ -99,25 +99,12 @@ import InputCore
         updatePreview()
     }
 
-    func sourceImage(_ source: InputSource) -> NSImage? {
-        if let asset = controllerInput.sourceAsset(source),
-            let image = ControllerSymbolResolver.image(named: asset)
-        {
-            return image
-        }
-        return sourceSymbol(source).flatMap {
-            NSImage(systemSymbolName: $0, accessibilityDescription: sourceLabel(source))
-        }
+    func sourceImage(
+        _ source: InputSource, font: NSFont = .systemFont(ofSize: NSFont.systemFontSize)
+    ) -> NSImage? {
+        controllerInput.sourceImage(source, font: font)
     }
 
-    func sourceSymbol(_ source: InputSource) -> String? {
-        if let symbol = controllerInput.sourceSymbol(source),
-            NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil
-        {
-            return symbol
-        }
-        return source.defaultSymbol
-    }
     func sourceLabel(_ source: InputSource) -> String { controllerInput.sourceLabel(source) }
     func sourceIsAvailable(_ source: InputSource) -> Bool {
         controllerInput.sourceIsAvailable(source)
