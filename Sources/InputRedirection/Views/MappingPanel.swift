@@ -63,11 +63,7 @@ struct MappingPanel: View {
                     mappingButton($0)
                 }
             }
-            HStack {
-                Text("Open a menu, then select an input or press it on your controller.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-            }
+
         }
         .padding(16)
     }
@@ -78,7 +74,6 @@ struct MappingPanel: View {
             MappingMenu(client: client, target: target)
                 .frame(height: 26)
                 .accessibilityLabel("Map \(target.rawValue)")
-                .help("Choose the controller input for 3DS \(target.rawValue)")
         }
         .frame(maxWidth: .infinity)
     }

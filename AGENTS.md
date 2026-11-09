@@ -1,3 +1,7 @@
+## UI
+
+- Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
+
 ## Git Commit Conventions
 
 - Follow the Conventional Commits specification (v1.0.0).

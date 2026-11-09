@@ -43,7 +43,6 @@ struct ControllerMenu: NSViewRepresentable {
         button.menu = menu
         button.selectItem(at: client.controllers.isEmpty ? 0 : client.selected + 2)
         button.isEnabled = !client.controllers.isEmpty
-        button.toolTip = "Choose a controller or press a button on it while this menu is open"
         button.setAccessibilityLabel("Controller: \(button.titleOfSelectedItem ?? "None")")
     }
 

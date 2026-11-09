@@ -35,10 +35,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.tint)
-                VStack(alignment: .leading) {
-                    Text("Input Redirection").font(.title.bold())
-                    Text("macOS → Nintendo 3DS").foregroundStyle(.secondary)
-                }
+                Text("Input Redirection").font(.title.bold())
                 Spacer()
                 Text(client.sending ? "Sending" : "Idle").font(.caption.bold())
                     .padding(8).background(
@@ -58,9 +55,6 @@ struct ContentView: View {
                     }
                     SendRateControl(sendRate: $client.sendRate)
                     Text(client.status).font(.callout).textSelection(.enabled)
-                    Text("UDP has no connection acknowledgment. Verify input on your 3DS.").font(
-                        .caption
-                    ).foregroundStyle(.secondary)
                 }.padding(6)
             }
             HStack {
@@ -88,14 +82,11 @@ struct ContentView: View {
                 }.help("Refresh controllers")
             }
             VStack(alignment: .leading, spacing: 12) {
-                Text("Touch Screen · 320 × 240").font(.headline)
+                Text("Touch Screen").font(.headline)
                 HStack(alignment: .top, spacing: 24) {
                     TouchSurface(client: client).frame(width: 320, height: 240)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(
-                            "Click and drag to use the stylus.\nNo 3DS video is displayed here."
-                        ).foregroundStyle(.secondary)
                         Text("Controller Input").font(.headline)
                         ScrollView(.horizontal) {
                             HStack(spacing: 8) {
@@ -121,24 +112,17 @@ struct ContentView: View {
                         }.frame(height: 24)
                         HStack(spacing: 10) {
                             Button(InputTarget.home.rawValue) { client.triggerHome() }
-                                .help("Send a HOME press")
                                 .disabled(!client.sending || client.home)
                             Button(InputTarget.power.rawValue) {
                                 client.triggerPower(longPress: false)
                             }
-                            .help("Send a power press")
                             .disabled(!client.sending || client.powerAction != nil)
                             Button("Power (Long)") { client.triggerPower(longPress: true) }
-                                .help("Send a long power press")
                                 .disabled(!client.sending || client.powerAction != nil)
                         }
                     }
                 }
             }
-            Text(
-                "Enable InputRedirection in Rosalina → Miscellaneous options. Connect your Mac and 3DS to the same LAN."
-            )
-            .font(.caption).foregroundStyle(.secondary)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
