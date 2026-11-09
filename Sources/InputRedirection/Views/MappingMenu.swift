@@ -80,7 +80,10 @@ struct MappingMenu: NSViewRepresentable {
                 DispatchQueue.main.async { menu?.cancelTracking() }
             }
             defer { capture.cancel() }
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height), in: sender)
+            let selectedItem = menu.items.first { $0.state == .on }
+            let top = sender.isFlipped ? sender.bounds.minY : sender.bounds.maxY
+            menu.popUp(
+                positioning: selectedItem, at: NSPoint(x: sender.bounds.minX, y: top), in: sender)
             self.menu = nil
         }
 
