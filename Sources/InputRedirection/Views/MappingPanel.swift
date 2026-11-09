@@ -4,34 +4,72 @@ import SwiftUI
 struct MappingPanel: View {
     @ObservedObject var client: Client
 
+    let maximumHeight: CGFloat
+    @Environment(\.dismiss) private var dismiss
+    @State private var contentHeight: CGFloat?
+
     var body: some View {
+        VStack(spacing: 0) {
+            Group {
+                if #available(macOS 14.0, *) {
+                    mappingScrollView.contentMargins(.top, 16, for: .scrollIndicators)
+                } else {
+                    mappingScrollView
+                }
+            }
+            .frame(height: min(contentHeight ?? maximumHeight, max(0, maximumHeight - 53)))
+            Divider().frame(height: 1)
+            HStack {
+                Button("Restore Defaults") { client.restoreDefaults() }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+        }
+        .frame(width: 640)
+        .onPreferenceChange(MappingContentHeightKey.self) { contentHeight = $0 }
+        .onDisappear { client.cancelMapping() }
+    }
+
+    private var mappingScrollView: some View {
         ScrollView {
-            VStack(spacing: 14) {
-                HStack(spacing: 12) {
-                    ForEach([InputTarget.l, .zl, .zr, .r], id: \.self) { mappingButton($0) }
-                }
-                HStack(spacing: 12) {
-                    stickPicker(.circlePad)
-                    stickPicker(.cStick)
-                }
-                HStack(alignment: .top, spacing: 12) {
-                    diamond("D-Pad", top: .up, left: .left, right: .right, bottom: .down)
-                    diamond("Face Buttons", top: .x, left: .y, right: .a, bottom: .b)
-                }
-                HStack(spacing: 12) {
-                    ForEach([InputTarget.home, .power, .start, .select], id: \.self) {
-                        mappingButton($0)
+            controls
+                .background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: MappingContentHeightKey.self, value: geometry.size.height)
                     }
                 }
-                HStack {
-                    Text("Open a menu, then select an input or press it on your controller.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Restore Defaults") { client.restoreDefaults() }
-                }
-            }.padding(16)
         }
-        .onDisappear { client.cancelMapping() }
+    }
+
+    private var controls: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                ForEach([InputTarget.l, .zl, .zr, .r], id: \.self) { mappingButton($0) }
+            }
+            HStack(spacing: 12) {
+                stickPicker(.circlePad)
+                stickPicker(.cStick)
+            }
+            HStack(alignment: .top, spacing: 12) {
+                diamond("D-Pad", top: .up, left: .left, right: .right, bottom: .down)
+                diamond("Face Buttons", top: .x, left: .y, right: .a, bottom: .b)
+            }
+            HStack(spacing: 12) {
+                ForEach([InputTarget.home, .power, .start, .select], id: \.self) {
+                    mappingButton($0)
+                }
+            }
+            HStack {
+                Text("Open a menu, then select an input or press it on your controller.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+        .padding(16)
     }
 
     private func mappingButton(_ target: InputTarget) -> some View {
@@ -68,5 +106,13 @@ struct MappingPanel: View {
                 mappingButton(right)
             }.padding(8)
         }.frame(maxWidth: .infinity)
+    }
+}
+
+private struct MappingContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

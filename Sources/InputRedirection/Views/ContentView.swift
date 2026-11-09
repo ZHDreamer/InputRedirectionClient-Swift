@@ -3,7 +3,35 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var client: Client
+    @State private var showingMapping = false
+
     var body: some View {
+        GeometryReader { geometry in
+            inputPage
+                .sheet(isPresented: $showingMapping) {
+                    if #available(macOS 15.0, *) {
+                        MappingPanel(client: client, maximumHeight: geometry.size.height - 48)
+                            .presentationSizing(.fitted)
+                    } else {
+                        MappingPanel(client: client, maximumHeight: geometry.size.height - 48)
+                    }
+                }
+        }
+        .frame(minWidth: 720, minHeight: 620)
+        .alert(
+            "Unable to Identify Controller",
+            isPresented: Binding(
+                get: { client.identificationError != nil },
+                set: { if !$0 { client.identificationError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { client.identificationError = nil }
+        } message: {
+            Text(client.identificationError ?? "")
+        }
+    }
+
+    private var inputPage: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.tint)
@@ -40,6 +68,13 @@ struct ContentView: View {
                 ControllerMenu(client: client)
                     .frame(maxWidth: .infinity)
                     .frame(height: 26)
+                Button {
+                    showingMapping = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help("Button Mapping")
+                .accessibilityLabel("Button Mapping")
                 Button("Identify") { client.identifyController() }
                     .disabled(!client.canIdentifyController)
                     .help(
@@ -52,79 +87,60 @@ struct ContentView: View {
                     Image(systemName: "arrow.clockwise")
                 }.help("Refresh controllers")
             }
-            TabView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Touch Screen · 320 × 240").font(.headline)
-                    HStack(alignment: .top, spacing: 24) {
-                        TouchSurface(client: client).frame(width: 320, height: 240)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        VStack(alignment: .leading, spacing: 14) {
-                            Text(
-                                "Click and drag to use the stylus.\nNo 3DS video is displayed here."
-                            ).foregroundStyle(.secondary)
-                            Text("Controller Input").font(.headline)
-                            ScrollView(.horizontal) {
-                                HStack(spacing: 8) {
-                                    if client.pressedSources.isEmpty { Text("—") }
-                                    ForEach(
-                                        InputSource.allCases.filter {
-                                            client.pressedSources.contains($0)
-                                        }, id: \.self
-                                    ) { source in
-                                        ControllerButtonLabel(client: client, source: source)
-                                    }
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Touch Screen · 320 × 240").font(.headline)
+                HStack(alignment: .top, spacing: 24) {
+                    TouchSurface(client: client).frame(width: 320, height: 240)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(
+                            "Click and drag to use the stylus.\nNo 3DS video is displayed here."
+                        ).foregroundStyle(.secondary)
+                        Text("Controller Input").font(.headline)
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 8) {
+                                if client.pressedSources.isEmpty { Text("—") }
+                                ForEach(
+                                    InputSource.allCases.filter {
+                                        client.pressedSources.contains($0)
+                                    }, id: \.self
+                                ) { source in
+                                    ControllerButtonLabel(client: client, source: source)
                                 }
-                            }.frame(height: 24)
-                            Text("3DS Output").font(.headline)
-                            let output = InputTarget.allCases.filter { client.pressed.contains($0) }
-                            ScrollView(.horizontal) {
-                                HStack(spacing: 8) {
-                                    if output.isEmpty { Text("—") }
-                                    ForEach(output, id: \.self) { target in
-                                        TargetButtonLabel(target: target)
-                                    }
-                                }
-                            }.frame(height: 24)
-                            HStack(spacing: 10) {
-                                Button(InputTarget.home.rawValue) { client.triggerHome() }
-                                    .help("Send a HOME press")
-                                    .disabled(!client.sending || client.home)
-                                Button(InputTarget.power.rawValue) {
-                                    client.triggerPower(longPress: false)
-                                }
-                                .help("Send a power press")
-                                .disabled(!client.sending || client.powerAction != nil)
-                                Button("Power (Long)") { client.triggerPower(longPress: true) }
-                                    .help("Send a long power press")
-                                    .disabled(!client.sending || client.powerAction != nil)
                             }
+                        }.frame(height: 24)
+                        Text("3DS Output").font(.headline)
+                        let output = InputTarget.allCases.filter { client.pressed.contains($0) }
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 8) {
+                                if output.isEmpty { Text("—") }
+                                ForEach(output, id: \.self) { target in
+                                    TargetButtonLabel(target: target)
+                                }
+                            }
+                        }.frame(height: 24)
+                        HStack(spacing: 10) {
+                            Button(InputTarget.home.rawValue) { client.triggerHome() }
+                                .help("Send a HOME press")
+                                .disabled(!client.sending || client.home)
+                            Button(InputTarget.power.rawValue) {
+                                client.triggerPower(longPress: false)
+                            }
+                            .help("Send a power press")
+                            .disabled(!client.sending || client.powerAction != nil)
+                            Button("Power (Long)") { client.triggerPower(longPress: true) }
+                                .help("Send a long power press")
+                                .disabled(!client.sending || client.powerAction != nil)
                         }
                     }
-                }.padding().tabItem { Label("Input", systemImage: "hand.draw") }
-                MappingPanel(client: client)
-                    .tabItem { Label("Button Mapping", systemImage: "switch.2") }
-                Form {
-                    Toggle("Invert Y axis for both sticks", isOn: $client.invertY)
-                    Text(
-                        "Choose stick assignments in Button Mapping.\nZL / ZR and C-Stick require a New 3DS."
-                    ).foregroundStyle(.secondary)
-                }.padding().tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
+                }
             }
             Text(
                 "Enable InputRedirection in Rosalina → Miscellaneous options. Connect your Mac and 3DS to the same LAN."
             )
             .font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(minWidth: 720, minHeight: 620)
-            .alert(
-                "Unable to Identify Controller",
-                isPresented: Binding(
-                    get: { client.identificationError != nil },
-                    set: { if !$0 { client.identificationError = nil } }
-                )
-            ) {
-                Button("OK", role: .cancel) { client.identificationError = nil }
-            } message: {
-                Text(client.identificationError ?? "")
-            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
