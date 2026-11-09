@@ -63,9 +63,14 @@ struct MappingMenu: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ view: NSPopUpButton, coordinator: Coordinator) {
+        coordinator.capture?.cancel()
+        coordinator.menu?.delegate = nil
         coordinator.menu?.cancelTracking()
-        if coordinator.client.mappingTarget == coordinator.target {
-            coordinator.client.cancelMapping()
+        view.target = nil
+        guard coordinator.isListening else { return }
+        coordinator.isListening = false
+        DispatchQueue.main.async { [client = coordinator.client, target = coordinator.target] in
+            if client.mappingTarget == target { client.cancelMapping() }
         }
     }
 
@@ -74,7 +79,7 @@ struct MappingMenu: NSViewRepresentable {
         let target: InputTarget
         var menu: NSMenu?
         var isListening = false
-        private var capture: AnyCancellable?
+        fileprivate var capture: AnyCancellable?
 
         init(client: Client, target: InputTarget) {
             self.client = client

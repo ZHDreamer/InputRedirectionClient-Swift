@@ -7,6 +7,47 @@ import XCTest
 @testable import InputRedirection
 
 final class MappingCaptureTests: XCTestCase {
+    @MainActor func testMenuTeardownDoesNotPublishSynchronously() async throws {
+        let name = "MenuTeardown.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let client = Client(preferences: preferences, controllerProvider: { [] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        let controllerCoordinator = ControllerMenu.Coordinator(client: client)
+        let mappingCoordinator = MappingMenu.Coordinator(client: client, target: .home)
+        let menu = NSMenu()
+        let button = NSPopUpButton()
+        var publications = 0
+        let subscription = client.objectWillChange.sink { publications += 1 }
+        defer { subscription.cancel() }
+
+        ControllerMenu.dismantleNSView(button, coordinator: controllerCoordinator)
+        MappingMenu.dismantleNSView(button, coordinator: mappingCoordinator)
+        XCTAssertEqual(publications, 0, "Idle teardown must not mutate shared state")
+
+        controllerCoordinator.menu = menu
+        menu.delegate = controllerCoordinator
+        controllerCoordinator.menuWillOpen(menu)
+        publications = 0
+        ControllerMenu.dismantleNSView(button, coordinator: controllerCoordinator)
+        XCTAssertEqual(publications, 0)
+        XCTAssertNil(menu.delegate)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertFalse(client.isSelectingController)
+
+        mappingCoordinator.menu = menu
+        menu.delegate = mappingCoordinator
+        mappingCoordinator.menuWillOpen(menu)
+        publications = 0
+        MappingMenu.dismantleNSView(button, coordinator: mappingCoordinator)
+        XCTAssertEqual(publications, 0)
+        XCTAssertNil(menu.delegate)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertNil(client.mappingTarget)
+    }
+
     @MainActor func testNativePopupKeepsIconOnlyLabelAndSelectsInput() async throws {
         let name = "MappingPopup.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

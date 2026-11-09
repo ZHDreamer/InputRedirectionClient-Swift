@@ -48,15 +48,22 @@ struct ControllerMenu: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ view: NSPopUpButton, coordinator: Coordinator) {
+        coordinator.capture?.cancel()
+        coordinator.menu?.delegate = nil
         coordinator.menu?.cancelTracking()
-        coordinator.client.cancelControllerSelection()
+        view.target = nil
+        guard coordinator.isListening else { return }
+        coordinator.isListening = false
+        DispatchQueue.main.async { [client = coordinator.client] in
+            if client.isSelectingController { client.cancelControllerSelection() }
+        }
     }
 
     @MainActor final class Coordinator: NSObject, NSMenuDelegate {
         let client: Client
         var menu: NSMenu?
         var isListening = false
-        private var capture: AnyCancellable?
+        fileprivate var capture: AnyCancellable?
 
         init(client: Client) {
             self.client = client
