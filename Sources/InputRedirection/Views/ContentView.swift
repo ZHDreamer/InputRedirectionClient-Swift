@@ -46,6 +46,12 @@ struct ContentView: View {
                             index)
                     }
                 }
+                Button("Identify") { client.identifyController() }
+                    .disabled(!client.canIdentifyController)
+                    .help(
+                        client.canIdentifyController
+                            ? "Vibrate the selected controller"
+                            : "The selected controller does not support vibration")
                 Button {
                     client.refresh()
                 } label: {
@@ -115,5 +121,16 @@ struct ContentView: View {
             )
             .font(.caption).foregroundStyle(.secondary)
         }.padding(24).frame(minWidth: 720, minHeight: 620)
+            .alert(
+                "Unable to Identify Controller",
+                isPresented: Binding(
+                    get: { client.identificationError != nil },
+                    set: { if !$0 { client.identificationError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { client.identificationError = nil }
+            } message: {
+                Text(client.identificationError ?? "")
+            }
     }
 }

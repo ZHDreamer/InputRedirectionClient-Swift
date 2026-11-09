@@ -5,6 +5,30 @@ import XCTest
 @testable import InputRedirection
 
 final class ControllerAvailabilityTests: XCTestCase {
+    @MainActor func testIdentifyWithoutHapticsPreservesInputAndClearsErrorOnDisconnect() {
+        let name = "ControllerIdentification.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        var connected = [controller]
+        let client = Client(preferences: preferences, controllerProvider: { connected })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        controller.extendedGamepad!.buttonA.setValue(1)
+        let expected = client.inputFrame().encoded()
+        let status = client.status
+        XCTAssertFalse(client.canIdentifyController)
+        client.identifyController()
+        XCTAssertNotNil(client.identificationError)
+        XCTAssertEqual(client.status, status)
+        XCTAssertEqual(client.inputFrame().encoded(), expected)
+        connected = []
+        client.refresh()
+        XCTAssertFalse(client.canIdentifyController)
+        XCTAssertNil(client.identificationError)
+    }
+
     @MainActor func testMissingButtonsAreHiddenAndDefaultToNone() {
         let name = "ControllerAvailability.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

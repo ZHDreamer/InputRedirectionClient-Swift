@@ -1,4 +1,5 @@
 import AppKit
+import CoreHaptics
 import GameController
 import InputCore
 
@@ -7,6 +8,56 @@ import InputCore
     var onStickMove: ((InputSource, Double) -> Void)?
     var onChange: (() -> Void)?
     private var controller: GCController?
+    private var identificationEngine: CHHapticEngine?
+    private var identificationPlayer: CHHapticPatternPlayer?
+    private var identificationTask: Task<Void, Never>?
+
+    var canIdentify: Bool {
+        controller?.haptics?.supportedLocalities.contains(.default) == true
+    }
+
+    func identify() throws {
+        stopIdentification()
+        guard let haptics = controller?.haptics, canIdentify,
+            let engine = haptics.createEngine(withLocality: .default)
+        else {
+            throw NSError(
+                domain: "ControllerIdentification", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "This controller does not support vibration."]
+            )
+        }
+        identificationEngine = engine
+        do {
+            let event = CHHapticEvent(
+                eventType: .hapticContinuous,
+                parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.6),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
+                ], relativeTime: 0, duration: 0.3)
+            let pattern = try CHHapticPattern(events: [event], parameters: [])
+            try engine.start()
+            let player = try engine.makePlayer(with: pattern)
+            identificationPlayer = player
+            try player.start(atTime: CHHapticTimeImmediate)
+            identificationTask = Task { @MainActor [weak self] in
+                do { try await Task.sleep(nanoseconds: 400_000_000) } catch { return }
+                self?.stopIdentification()
+            }
+        } catch {
+            stopIdentification()
+            throw error
+        }
+    }
+
+    func stopIdentification() {
+        identificationTask?.cancel()
+        identificationTask = nil
+        try? identificationPlayer?.stop(atTime: CHHapticTimeImmediate)
+        identificationPlayer = nil
+        identificationEngine?.stop(completionHandler: nil)
+        identificationEngine = nil
+    }
+
     private var pressedStickDirections: [InputSource: InputSource] = [:]
     private var stickInputs: [(InputSource, GCControllerDirectionPad)] = []
     // Use the same elements for input polling and display metadata.
@@ -122,6 +173,7 @@ import InputCore
         buttonMetadata[source]?.available ?? (source == .none)
     }
     func configure(_ controller: GCController?) {
+        stopIdentification()
         self.controller = controller
         for (_, stick) in stickInputs { stick.valueChangedHandler = nil }
         stickInputs.removeAll()

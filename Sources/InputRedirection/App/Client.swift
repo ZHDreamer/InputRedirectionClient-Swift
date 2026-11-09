@@ -11,6 +11,7 @@ import InputCore
     @Published var selected = 0 { didSet { configureController() } }
     @Published var sending = false
     @Published var status = "Not sending"
+    @Published var identificationError: String?
     @Published var pressed: Set<InputTarget> = []
     @Published var pressedSources: Set<InputSource> = []
     @Published var invertY = false {
@@ -92,11 +93,21 @@ import InputCore
             category: controller.productCategory, vendor: controller.vendorName ?? "")
     }
     private func configureController() {
+        identificationError = nil
         cancelMapping()
         controllerInput.configure(currentController)
         useProfile(for: currentController)
         objectWillChange.send()
         updatePreview()
+    }
+
+    var canIdentifyController: Bool { controllerInput.canIdentify }
+
+    func identifyController() {
+        identificationError = nil
+        do { try controllerInput.identify() } catch {
+            identificationError = error.localizedDescription
+        }
     }
 
     func sourceImage(
@@ -393,6 +404,7 @@ import InputCore
         tick()
     }
     func stop() {
+        controllerInput.stopIdentification()
         cancelMapping()
         mappingInputSuppressed = false
         if let sendingActivity {
