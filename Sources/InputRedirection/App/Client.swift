@@ -18,6 +18,7 @@ import InputCore
         didSet { if invertY != oldValue { saveCurrentProfile() } }
     }
     @Published private(set) var mappingTarget: InputTarget?
+    @Published private(set) var isSelectingController = false
     @Published private(set) var home = false
     @Published private(set) var powerAction: PowerAction?
     @Published var sendRate = 125 {
@@ -35,6 +36,7 @@ import InputCore
     private var mappingStartedAt = 0.0
     private var mappingInputSuppressed = false
     private let controllerInput = ControllerInput()
+    private let controllerSelection = ControllerSelectionListener()
     enum PowerAction { case press, longPress }
     private enum PulseButton { case home, power }
     private var releaseTasks: [PulseButton: Task<Void, Never>] = [:]
@@ -93,6 +95,7 @@ import InputCore
             category: controller.productCategory, vendor: controller.vendorName ?? "")
     }
     private func configureController() {
+        cancelControllerSelection()
         identificationError = nil
         cancelMapping()
         controllerInput.configure(currentController)
@@ -132,6 +135,34 @@ import InputCore
             ?? min(selected, max(0, controllers.count - 1))
     }
 
+    func beginControllerSelection() {
+        cancelMapping()
+        cancelButtonActions()
+        home = false
+        touch = nil
+        isSelectingController = true
+        mappingInputSuppressed = sending
+        controllerSelection.start(controllers: controllers) { [weak self] controller in
+            self?.selectController(controller)
+        }
+        tick()
+    }
+
+    func cancelControllerSelection() {
+        controllerSelection.stop()
+        isSelectingController = false
+        cancelMapping()
+    }
+
+    func selectController(_ controller: GCController) {
+        guard let index = controllers.firstIndex(where: { $0 === controller }) else { return }
+        cancelControllerSelection()
+        selected = index
+        // Keep the selection press out of the 3DS input until it is released.
+        mappingInputSuppressed = sending
+        tick()
+    }
+
     func availableSources(for target: InputTarget) -> [InputSource] {
         target.sources.filter { sourceIsAvailable($0) }
     }
@@ -165,7 +196,9 @@ import InputCore
 
     func cancelMapping() {
         mappingTarget = nil
-        if mappingInputSuppressed && !controllerInput.buttonValues().values.contains(true) {
+        if mappingInputSuppressed && !isSelectingController
+            && !controllerInput.buttonValues().values.contains(true)
+        {
             mappingInputSuppressed = false
         }
     }
@@ -323,7 +356,7 @@ import InputCore
         var state = InputFrame()
         let values = controllerInput.buttonValues()
         if mappingInputSuppressed {
-            if mappingTarget != nil || values.values.contains(true) {
+            if mappingTarget != nil || isSelectingController || values.values.contains(true) {
                 updatePreview(values: values)
                 return state
             }
@@ -404,6 +437,7 @@ import InputCore
         tick()
     }
     func stop() {
+        cancelControllerSelection()
         controllerInput.stopIdentification()
         cancelMapping()
         mappingInputSuppressed = false

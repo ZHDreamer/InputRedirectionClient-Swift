@@ -10,9 +10,10 @@ final class MappingConnectionTests: XCTestCase {
         let name = "MappingConnection.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!
         let controller = GCController.withExtendedGamepad()
+        let secondController = GCController.withExtendedGamepad()
         var connections = 0
         let client = Client(
-            preferences: preferences, controllerProvider: { [controller] },
+            preferences: preferences, controllerProvider: { [controller, secondController] },
             socketFactory: {
                 connections += 1
                 return try UDPSocket.make()
@@ -96,6 +97,22 @@ final class MappingConnectionTests: XCTestCase {
         try await waitForPacket { $0 != neutral }
         gamepad.rightThumbstick.setValueForXAxis(0, yAxis: 0)
         try await waitForPacket { $0 == neutral }
+
+        client.beginControllerSelection()
+        try await checkNeutralHeartbeat()
+        secondController.extendedGamepad!.buttonA.setValue(1)
+        try await checkNeutralHeartbeat()
+        XCTAssertTrue(client.currentController === secondController)
+        XCTAssertFalse(client.isSelectingController)
+        secondController.extendedGamepad!.buttonA.setValue(0)
+        try await waitForPacket { $0 == neutral }
+        secondController.extendedGamepad!.buttonA.setValue(1)
+        try await waitForPacket { $0 != neutral }
+        secondController.extendedGamepad!.buttonA.setValue(0)
+        try await waitForPacket { $0 == neutral }
+        client.beginControllerSelection()
+        client.selectController(controller)
+        try await checkNeutralHeartbeat()
 
         client.beginMapping(.home)
         try await checkNeutralHeartbeat()

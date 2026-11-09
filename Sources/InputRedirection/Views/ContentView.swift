@@ -36,16 +36,10 @@ struct ContentView: View {
                 }.padding(6)
             }
             HStack {
-                Picker("Controller", selection: $client.selected) {
-                    if client.controllers.isEmpty {
-                        Text("Connect a controller via Bluetooth or USB").tag(0)
-                    }
-                    ForEach(Array(client.controllers.enumerated()), id: \.offset) {
-                        index, controller in
-                        Text("\(controller.vendorName ?? "Game Controller") #\(index + 1)").tag(
-                            index)
-                    }
-                }
+                Text("Controller")
+                ControllerMenu(client: client)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 26)
                 Button("Identify") { client.identifyController() }
                     .disabled(!client.canIdentifyController)
                     .help(

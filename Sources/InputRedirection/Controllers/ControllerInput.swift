@@ -288,3 +288,43 @@ import InputCore
             })
     }
 }
+
+@MainActor final class ControllerSelectionListener {
+    private var restoreHandlers: [() -> Void] = []
+    private var session = UUID()
+
+    func start(controllers: [GCController], onPress: @escaping (GCController) -> Void) {
+        stop()
+        let session = self.session
+        for controller in controllers {
+            var buttons = controller.physicalInputProfile.allButtons
+            if let gamepad = controller.extendedGamepad {
+                buttons.formUnion(gamepad.allButtons)
+            }
+            for button in buttons {
+                let previous = button.pressedChangedHandler
+                let gesture = button.preferredSystemGestureState
+                if button.isBoundToSystemGesture { button.preferredSystemGestureState = .disabled }
+                restoreHandlers.append {
+                    button.pressedChangedHandler = previous
+                    button.preferredSystemGestureState = gesture
+                }
+                button.pressedChangedHandler = {
+                    [weak self, weak controller] button, value, pressed in
+                    previous?(button, value, pressed)
+                    guard pressed else { return }
+                    Task { @MainActor [weak self, weak controller] in
+                        guard let self, self.session == session, let controller else { return }
+                        onPress(controller)
+                    }
+                }
+            }
+        }
+    }
+
+    func stop() {
+        session = UUID()
+        for restore in restoreHandlers { restore() }
+        restoreHandlers.removeAll()
+    }
+}
