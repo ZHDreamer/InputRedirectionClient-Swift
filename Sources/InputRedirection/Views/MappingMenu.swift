@@ -94,6 +94,10 @@ struct MappingMenu: NSViewRepresentable {
         func menuDidClose(_ menu: NSMenu) {
             isListening = false
             if client.mappingTarget == target { client.cancelMapping() }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.isListening else { return }
+                self.client.objectWillChange.send()
+            }
         }
 
         @objc func selectInput(_ sender: NSPopUpButton) {
