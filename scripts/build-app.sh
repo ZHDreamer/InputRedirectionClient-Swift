@@ -2,7 +2,16 @@
 set -eu
 cd "${0:A:h}/.."
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
-swift build -c release --disable-sandbox -debug-info-format none
+
+SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
+MIN_MACOS=13.0
+
+swift build -c release --disable-sandbox -debug-info-format none \
+    -Xlinker -platform_version \
+    -Xlinker macos \
+    -Xlinker "$MIN_MACOS" \
+    -Xlinker "$SDK_VERSION"
+
 BIN_DIR=$(swift build -c release --show-bin-path)
 APP="$PWD/dist/InputRedirection.app"
 mkdir -p "$PWD/dist"
