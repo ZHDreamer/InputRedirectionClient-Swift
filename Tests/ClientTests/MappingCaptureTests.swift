@@ -1,11 +1,43 @@
 import AppKit
 import GameController
 import InputCore
+import SwiftUI
 import XCTest
 
 @testable import InputRedirection
 
 final class MappingCaptureTests: XCTestCase {
+    @MainActor func testNativePopupKeepsIconOnlyLabelAndSelectsInput() async throws {
+        let name = "MappingPopup.\(UUID().uuidString)"
+        let preferences = UserDefaults(suiteName: name)!
+        let controller = GCController.withExtendedGamepad()
+        let client = Client(preferences: preferences, controllerProvider: { [controller] })
+        defer {
+            client.stop()
+            preferences.removePersistentDomain(forName: name)
+        }
+        let host = NSHostingView(rootView: MappingMenu(client: client, target: .home))
+        host.frame = NSRect(x: 0, y: 0, width: 180, height: 26)
+        host.layoutSubtreeIfNeeded()
+        func findPopup(in view: NSView) -> NSPopUpButton? {
+            (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { findPopup(in: $0) }.first
+        }
+        let button = try XCTUnwrap(findPopup(in: host))
+        let cell = try XCTUnwrap(button.cell as? NSPopUpButtonCell)
+        XCTAssertEqual(cell.arrowPosition, .noArrow)
+        XCTAssertFalse(cell.usesItemFromMenu)
+        XCTAssertEqual(button.imagePosition, .imageOnly)
+        let menu = try XCTUnwrap(button.menu)
+        let item = try XCTUnwrap(menu.items.first { ($0.representedObject as? InputSource) == .a })
+        button.select(item)
+        XCTAssertTrue(button.sendAction(button.action, to: button.target))
+        XCTAssertEqual(client.mapping[.home], .a)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertEqual(button.selectedItem?.representedObject as? InputSource, .a)
+        XCTAssertEqual(cell.menuItem?.title, "")
+        XCTAssertNotNil(cell.menuItem?.image)
+    }
+
     @MainActor func testCaptureButtonsSticksAndCancellation() async throws {
         let name = "MappingCapture.\(UUID().uuidString)"
         let preferences = UserDefaults(suiteName: name)!

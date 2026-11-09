@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import InputCore
 import SwiftUI
 
@@ -9,29 +10,59 @@ struct MappingMenu: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(client: client, target: target) }
 
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(
-            title: "", target: context.coordinator, action: #selector(Coordinator.openMenu(_:)))
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.selectInput(_:))
         button.bezelStyle = .rounded
         button.alignment = .center
+        if let cell = button.cell as? NSPopUpButtonCell {
+            cell.arrowPosition = .noArrow
+            cell.usesItemFromMenu = false
+        }
         button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return button
     }
 
-    func updateNSView(_ button: NSButton, context: Context) {
+    func updateNSView(_ button: NSPopUpButton, context: Context) {
+        guard !context.coordinator.isListening else { return }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.delegate = context.coordinator
+        let hint = NSMenuItem(
+            title: target.isStick
+                ? "Move a stick or press the D-Pad" : "Press a button or choose below",
+            action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        menu.addItem(hint)
+        menu.addItem(.separator())
         let source = client.mapping[target] ?? .none
+        var selectedItem: NSMenuItem?
+        for availableSource in client.availableSources(for: target) {
+            let item = NSMenuItem(
+                title: client.sourceLabel(availableSource), action: nil, keyEquivalent: "")
+            item.representedObject = availableSource
+            item.image = client.sourceImage(availableSource, font: menu.font)
+            menu.addItem(item)
+            if availableSource == source { selectedItem = item }
+        }
+        context.coordinator.menu = menu
+        button.menu = menu
+        button.select(selectedItem)
         let name = client.sourceLabel(source)
         let image = client.sourceImage(
             source, font: button.font ?? .systemFont(ofSize: NSFont.systemFontSize))
-        button.title = image == nil ? name : ""
-        button.image = image
+        let displayItem = NSMenuItem(
+            title: image == nil ? name : "", action: nil, keyEquivalent: "")
+        displayItem.image = image
+        (button.cell as? NSPopUpButtonCell)?.menuItem = displayItem
         button.imagePosition = image == nil ? .noImage : .imageOnly
         button.toolTip =
             "\(target.rawValue): \(name). Open to choose or listen for controller input. Input is paused while mapping."
         button.setAccessibilityLabel("Map \(target.rawValue): \(name)")
     }
 
-    static func dismantleNSView(_ view: NSButton, coordinator: Coordinator) {
+    static func dismantleNSView(_ view: NSPopUpButton, coordinator: Coordinator) {
         coordinator.menu?.cancelTracking()
         if coordinator.client.mappingTarget == coordinator.target {
             coordinator.client.cancelMapping()
@@ -43,48 +74,16 @@ struct MappingMenu: NSViewRepresentable {
         let target: InputTarget
         var menu: NSMenu?
         var isListening = false
+        private var capture: AnyCancellable?
 
         init(client: Client, target: InputTarget) {
             self.client = client
             self.target = target
-        }
-
-        @objc func openMenu(_ sender: NSButton) {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-            menu.delegate = self
-            let isStick = target.isStick
-            let hint = NSMenuItem(
-                title: isStick
-                    ? "Move a stick or press the D-Pad" : "Press a button or choose below",
-                action: nil, keyEquivalent: "")
-            hint.isEnabled = false
-            menu.addItem(hint)
-            menu.addItem(.separator())
-            let sources = client.availableSources(for: target)
-            for source in sources {
-                let name = client.sourceLabel(source)
-                let item = NSMenuItem(
-                    title: name, action: #selector(selectInput(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = source
-                item.image = client.sourceImage(source, font: menu.font)
-                let selected = client.mapping[target] ?? .none
-                item.state = selected == source ? .on : .off
-                menu.addItem(item)
-            }
-            self.menu = menu
-            // Close native tracking directly; SwiftUI redraws may wait until the menu closes.
-            let capture = client.$mappingTarget.sink { [weak self, weak menu] selected in
+            super.init()
+            capture = client.$mappingTarget.sink { [weak self] selected in
                 guard let self, self.isListening, selected != self.target else { return }
-                DispatchQueue.main.async { menu?.cancelTracking() }
+                DispatchQueue.main.async { [weak menu = self.menu] in menu?.cancelTracking() }
             }
-            defer { capture.cancel() }
-            let selectedItem = menu.items.first { $0.state == .on }
-            let top = sender.isFlipped ? sender.bounds.minY : sender.bounds.maxY
-            menu.popUp(
-                positioning: selectedItem, at: NSPoint(x: sender.bounds.minX, y: top), in: sender)
-            self.menu = nil
         }
 
         func menuWillOpen(_ menu: NSMenu) {
@@ -97,8 +96,10 @@ struct MappingMenu: NSViewRepresentable {
             if client.mappingTarget == target { client.cancelMapping() }
         }
 
-        @objc func selectInput(_ sender: NSMenuItem) {
-            guard let source = sender.representedObject as? InputSource else { return }
+        @objc func selectInput(_ sender: NSPopUpButton) {
+            guard let source = sender.selectedItem?.representedObject as? InputSource else {
+                return
+            }
             client.cancelMapping()
             client.mapping[target] = source
             client.save()
