@@ -19,7 +19,7 @@ struct SendRateControl: View {
                 Text("Send Rate")
                 Spacer()
                 HStack(spacing: 4) {
-                    TextField("Send rate", value: $draftRate, format: .number.grouping(.never))
+                    TextField("", text: $rateText)
                         .textFieldStyle(.roundedBorder)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 50)
@@ -34,7 +34,7 @@ struct SendRateControl: View {
                     Text("Hz")
                 }
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
             }
             .font(.callout)
 
