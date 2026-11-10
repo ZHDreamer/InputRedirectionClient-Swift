@@ -14,7 +14,8 @@ struct MappingMenu: NSViewRepresentable {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
         button.target = context.coordinator
         button.action = #selector(Coordinator.selectInput(_:))
-        button.bezelStyle = .rounded
+        button.bezelStyle = .regularSquare
+        button.imageScaling = .scaleProportionallyDown
         button.alignment = .center
         if let cell = button.cell as? NSPopUpButtonCell {
             cell.arrowPosition = .noArrow
@@ -22,6 +23,12 @@ struct MappingMenu: NSViewRepresentable {
         }
         button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return button
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSPopUpButton, context: Context)
+        -> CGSize?
+    {
+        CGSize(width: proposal.width ?? nsView.intrinsicContentSize.width, height: 24)
     }
 
     func updateNSView(_ button: NSPopUpButton, context: Context) {
