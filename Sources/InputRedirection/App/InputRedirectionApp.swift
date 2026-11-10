@@ -6,11 +6,12 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             ContentView(client: client)
+                .fixedSize(horizontal: true, vertical: true)
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
                     NSApp.activate(ignoringOtherApps: true)
                 }
         }
-        .defaultSize(width: 760, height: 650)
+        .windowResizability(.contentSize)
     }
 }

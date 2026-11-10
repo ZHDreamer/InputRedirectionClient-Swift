@@ -6,29 +6,37 @@ struct ContentView: View {
     @State private var showingMapping = false
 
     var body: some View {
-        GeometryReader { geometry in
-            inputPage
-                .sheet(isPresented: $showingMapping) {
-                    if #available(macOS 15.0, *) {
-                        MappingPanel(client: client, maximumHeight: geometry.size.height - 48)
-                            .presentationSizing(.fitted)
-                    } else {
-                        MappingPanel(client: client, maximumHeight: geometry.size.height - 48)
-                    }
+        inputPage
+            .background {
+                GeometryReader { geometry in
+                    Color.clear
+                        .sheet(isPresented: $showingMapping) {
+                            if #available(macOS 15.0, *) {
+                                MappingPanel(
+                                    client: client,
+                                    maximumHeight: geometry.size.height - 48,
+                                )
+                                .presentationSizing(.fitted)
+                            } else {
+                                MappingPanel(
+                                    client: client,
+                                    maximumHeight: geometry.size.height - 48,
+                                )
+                            }
+                        }
                 }
-        }
-        .frame(minWidth: 720, minHeight: 620)
-        .alert(
-            "Unable to Identify Controller",
-            isPresented: Binding(
-                get: { client.identificationError != nil },
-                set: { if !$0 { client.identificationError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { client.identificationError = nil }
-        } message: {
-            Text(client.identificationError ?? "")
-        }
+            }
+            .alert(
+                "Unable to Identify Controller",
+                isPresented: Binding(
+                    get: { client.identificationError != nil },
+                    set: { if !$0 { client.identificationError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { client.identificationError = nil }
+            } message: {
+                Text(client.identificationError ?? "")
+            }
     }
 
     private var inputPage: some View {
@@ -125,6 +133,5 @@ struct ContentView: View {
             }
         }
         .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
