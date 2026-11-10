@@ -63,6 +63,7 @@ struct ContentView: View {
                 Text("Controller").font(.headline)
                 HStack {
                     ControllerMenu(client: client)
+                        .disabled(client.controllers.isEmpty)
                         .frame(maxWidth: .infinity)
                         .frame(height: 26)
                     Button {
@@ -70,6 +71,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                    .disabled(client.currentController == nil)
                     .help("Button Mapping")
                     .accessibilityLabel("Button Mapping")
                     Button("Identify") { client.identifyController() }
