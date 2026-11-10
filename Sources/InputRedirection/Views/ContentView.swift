@@ -14,12 +14,14 @@ struct ContentView: View {
                             if #available(macOS 15.0, *) {
                                 MappingPanel(
                                     client: client,
+                                    maximumWidth: geometry.size.width - 36,
                                     maximumHeight: geometry.size.height - 48,
                                 )
                                 .presentationSizing(.fitted)
                             } else {
                                 MappingPanel(
                                     client: client,
+                                    maximumWidth: geometry.size.width - 36,
                                     maximumHeight: geometry.size.height - 48,
                                 )
                             }

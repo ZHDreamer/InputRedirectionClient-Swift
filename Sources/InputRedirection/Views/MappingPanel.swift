@@ -4,6 +4,7 @@ import SwiftUI
 struct MappingPanel: View {
     @ObservedObject var client: Client
 
+    let maximumWidth: CGFloat
     let maximumHeight: CGFloat
     @Environment(\.dismiss) private var dismiss
     @State private var contentHeight: CGFloat?
@@ -28,7 +29,7 @@ struct MappingPanel: View {
             .padding(.horizontal, 16)
             .frame(height: 52)
         }
-        .frame(width: 640)
+        .frame(width: min(640, maximumWidth))
         .onPreferenceChange(MappingContentHeightKey.self) { contentHeight = $0 }
         .onDisappear { client.cancelMapping() }
     }
