@@ -41,53 +41,44 @@ struct ContentView: View {
 
     private var inputPage: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.tint)
-                Text("Input Redirection").font(.title.bold())
-                Spacer()
-                Text(client.sending ? "Sending" : "Idle").font(.caption.bold())
-                    .padding(8).background(
-                        client.sending ? Color.green.opacity(0.15) : Color.gray.opacity(0.15),
-                        in: Capsule())
-            }
-            GroupBox("3DS Network") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        TextField("3DS IPv4 address", text: $client.address).textFieldStyle(
-                            .roundedBorder
-                        ).disabled(client.sending)
-                        Button(client.sending ? "Stop" : "Start Sending") {
-                            client.sending ? client.stop() : client.start()
+            VStack(alignment: .leading, spacing: 12) {
+                Text("3DS Network").font(.headline)
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            TextField("3DS IPv4 address", text: $client.address).textFieldStyle(
+                                .roundedBorder
+                            ).disabled(client.sending)
+                            Button(client.sending ? "Stop" : "Start Sending") {
+                                client.sending ? client.stop() : client.start()
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    SendRateControl(sendRate: $client.sendRate)
-                    Text(client.status).font(.callout).textSelection(.enabled)
-                }.padding(6)
-            }
-            HStack {
-                Text("Controller")
-                ControllerMenu(client: client)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 26)
-                Button {
-                    showingMapping = true
-                } label: {
-                    Image(systemName: "gearshape")
+                        SendRateControl(sendRate: $client.sendRate)
+                        Text(client.status).font(.callout).textSelection(.enabled)
+                    }.padding(6)
                 }
-                .help("Button Mapping")
-                .accessibilityLabel("Button Mapping")
-                Button("Identify") { client.identifyController() }
-                    .disabled(!client.canIdentifyController)
-                    .help(
-                        client.canIdentifyController
-                            ? "Vibrate the selected controller"
-                            : "The selected controller does not support vibration")
-                Button {
-                    client.refresh()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }.help("Refresh controllers")
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Controller").font(.headline)
+                HStack {
+                    ControllerMenu(client: client)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 26)
+                    Button {
+                        showingMapping = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .help("Button Mapping")
+                    .accessibilityLabel("Button Mapping")
+                    Button("Identify") { client.identifyController() }
+                        .disabled(!client.canIdentifyController)
+                        .help(
+                            client.canIdentifyController
+                                ? "Vibrate the selected controller"
+                                : "The selected controller does not support vibration")
+                }
             }
             VStack(alignment: .leading, spacing: 12) {
                 Text("Touch Screen").font(.headline)
