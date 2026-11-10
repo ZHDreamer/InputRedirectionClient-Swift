@@ -57,7 +57,17 @@ struct ContentView: View {
                             .buttonStyle(.borderedProminent)
                         }
                         SendRateControl(sendRate: $client.sendRate)
-                        Text(client.status).font(.callout).textSelection(.enabled)
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(client.sending ? Color.green : Color.red)
+                                .frame(width: 10, height: 10)
+                                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
+                                .accessibilityHidden(true)
+                            Text(client.status)
+                                .font(.callout)
+                                .foregroundColor(.secondary)
+                                .textSelection(.enabled)
+                        }
                     }.padding(6)
                 }
             }
