@@ -2,13 +2,17 @@ import SwiftUI
 
 struct SendRateControl: View {
     @Binding private var sendRate: Int
+    @FocusState.Binding private var focusedField: InputFieldFocus?
     @State private var draftRate: Int
     @State private var rateText: String
     @State private var isDragging = false
-    @FocusState private var isEditingValue: Bool
 
-    init(sendRate: Binding<Int>) {
+    init(
+        sendRate: Binding<Int>,
+        focusedField: FocusState<InputFieldFocus?>.Binding
+    ) {
         _sendRate = sendRate
+        _focusedField = focusedField
         _draftRate = State(initialValue: sendRate.wrappedValue)
         _rateText = State(initialValue: String(sendRate.wrappedValue))
     }
@@ -23,7 +27,7 @@ struct SendRateControl: View {
                         .textFieldStyle(.roundedBorder)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 50)
-                        .focused($isEditingValue)
+                        .focused($focusedField, equals: .sendRate)
                         .onChange(of: rateText) { text in
                             let digits = text.filter { $0 >= "0" && $0 <= "9" }
                             if text != digits { rateText = digits }
@@ -50,7 +54,7 @@ struct SendRateControl: View {
                 onEditingChanged: { editing in
                     isDragging = editing
                     if editing {
-                        isEditingValue = false
+                        focusedField = nil
                     } else {
                         commit()
                     }
@@ -62,11 +66,11 @@ struct SendRateControl: View {
         }
         .controlSize(.small)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onChange(of: isEditingValue) { editing in
-            if !editing && !isDragging { commit() }
+        .onChange(of: focusedField) { field in
+            if field != .sendRate && !isDragging { commit() }
         }
         .onChange(of: sendRate) { value in
-            if !isDragging && !isEditingValue {
+            if !isDragging && focusedField != .sendRate {
                 draftRate = value
                 rateText = String(value)
             }

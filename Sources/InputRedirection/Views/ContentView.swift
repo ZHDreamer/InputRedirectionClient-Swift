@@ -4,9 +4,13 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var client: Client
     @State private var showingMapping = false
+    @FocusState private var focusedField: InputFieldFocus?
 
     var body: some View {
         inputPage
+            .background {
+                InputFocusDismissal { focusedField = nil }
+            }
             .background {
                 GeometryReader { geometry in
                     Color.clear
@@ -48,15 +52,19 @@ struct ContentView: View {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            TextField("3DS IPv4 address", text: $client.address).textFieldStyle(
-                                .roundedBorder
-                            ).disabled(client.sending)
+                            TextField("3DS IPv4 address", text: $client.address)
+                                .textFieldStyle(.roundedBorder)
+                                .focused($focusedField, equals: .address)
+                                .disabled(client.sending)
                             Button(client.sending ? "Stop" : "Start Sending") {
                                 client.sending ? client.stop() : client.start()
                             }
                             .buttonStyle(.borderedProminent)
                         }
-                        SendRateControl(sendRate: $client.sendRate)
+                        SendRateControl(
+                            sendRate: $client.sendRate,
+                            focusedField: $focusedField
+                        )
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(client.sending ? Color.green : Color.red)
