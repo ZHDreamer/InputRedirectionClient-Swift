@@ -98,7 +98,12 @@ struct ContentView: View {
                 Text("Touch Screen").font(.headline)
                 HStack(alignment: .top, spacing: 24) {
                     TouchSurface(client: client).frame(width: 320, height: 240)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(.separator, lineWidth: 1)
+                                .allowsHitTesting(false)
+                        }
                     VStack(alignment: .leading, spacing: 14) {
                         Text("Controller Input").font(.headline)
                         ScrollView(.horizontal) {

@@ -14,15 +14,15 @@ final class TouchView: NSView {
     weak var client: Client?
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.controlBackgroundColor.setFill()
+        NSColor.groupedBackground.setFill()
         bounds.fill()
         NSColor.separatorColor.setStroke()
         let grid = NSBezierPath()
-        for x in stride(from: 0.0, through: bounds.width, by: 40) {
+        for x in stride(from: 40.0, to: bounds.width, by: 40) {
             grid.move(to: NSPoint(x: x, y: 0))
             grid.line(to: NSPoint(x: x, y: bounds.height))
         }
-        for y in stride(from: 0.0, through: bounds.height, by: 40) {
+        for y in stride(from: 40.0, to: bounds.height, by: 40) {
             grid.move(to: NSPoint(x: 0, y: y))
             grid.line(to: NSPoint(x: bounds.width, y: y))
         }
@@ -42,5 +42,15 @@ final class TouchView: NSView {
     override func mouseUp(with event: NSEvent) {
         client?.touch = nil
         needsDisplay = true
+    }
+}
+
+extension NSColor {
+    static var groupedBackground: NSColor {
+        if #available(macOS 14.0, *) {
+            return .quaternarySystemFill
+        } else {
+            return .controlBackgroundColor
+        }
     }
 }
