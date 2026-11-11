@@ -6,12 +6,7 @@ export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
 SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
 MIN_MACOS=13.0
 
-swift build -c release --disable-sandbox -debug-info-format none \
-    -Xlinker -platform_version \
-    -Xlinker macos \
-    -Xlinker "$MIN_MACOS" \
-    -Xlinker "$SDK_VERSION" \
-    "$@"
+swift build -c release --disable-sandbox -debug-info-format none "$@"
 
 BIN_DIR=$(swift build -c release "$@" --show-bin-path)
 APP="$PWD/dist/InputRedirection.app"
@@ -32,7 +27,13 @@ iconutil --convert icns "$STAGING_DIR/AppIcon.iconset" \
     --output "$STAGED_APP/Contents/Resources/AppIcon.icns"
 # Never overwrite signed code in place: use a fresh inode and sign the complete
 # staged bundle before replacing the previous build (Apple: Updating Mac Software).
-cp "$BIN_DIR/InputRedirection" "$STAGED_APP/Contents/MacOS/"
+VTOOL_ARCHS=()
+for arch in $(lipo -archs "$BIN_DIR/InputRedirection"); do
+    VTOOL_ARCHS+=(-arch "$arch")
+done
+xcrun vtool "${VTOOL_ARCHS[@]}" -set-build-version macos "$MIN_MACOS" "$SDK_VERSION" -replace \
+    -output "$STAGED_APP/Contents/MacOS/InputRedirection" "$BIN_DIR/InputRedirection"
+chmod +x "$STAGED_APP/Contents/MacOS/InputRedirection"
 cp -R "$BIN_DIR/InputRedirection_InputRedirection.bundle" "$STAGED_APP/Contents/Resources/"
 cp Resources/Info.plist "$STAGED_APP/Contents/Info.plist"
 codesign --force --sign - "$STAGED_APP"
