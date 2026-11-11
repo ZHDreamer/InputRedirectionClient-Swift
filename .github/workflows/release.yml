@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    name: Build macOS app
+    name: Build macOS Universal app
     runs-on: macos-26
     steps:
       - name: Check out release tag
@@ -18,7 +18,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: Build app
-        run: ./scripts/build-app.sh
+        run: ./scripts/build-app.sh --arch arm64 --arch x86_64
 
       - name: Package app
         id: package
@@ -26,7 +26,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           version="${RELEASE_TAG#v}"
-          archive="InputRedirection-${version}-macOS.zip"
+          archive="InputRedirection-${version}-macOS-universal.zip"
           ditto -c -k --sequesterRsrc --keepParent \
             dist/InputRedirection.app "dist/${archive}"
           echo "archive=${archive}" >> "$GITHUB_OUTPUT"

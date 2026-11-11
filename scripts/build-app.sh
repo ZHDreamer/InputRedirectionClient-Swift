@@ -10,9 +10,10 @@ swift build -c release --disable-sandbox -debug-info-format none \
     -Xlinker -platform_version \
     -Xlinker macos \
     -Xlinker "$MIN_MACOS" \
-    -Xlinker "$SDK_VERSION"
+    -Xlinker "$SDK_VERSION" \
+    "$@"
 
-BIN_DIR=$(swift build -c release --show-bin-path)
+BIN_DIR=$(swift build -c release "$@" --show-bin-path)
 APP="$PWD/dist/InputRedirection.app"
 mkdir -p "$PWD/dist"
 STAGING_DIR=$(mktemp -d "$PWD/dist/.inputredirection-build.XXXXXX")
