@@ -23,6 +23,6 @@ The app sends input only; it does not display 3DS video. C-Stick and ZL/ZR requi
 
 - Customize button and stick mappings, with settings saved for each controller type.
 - Use the mouse as a stylus to control the 3DS touchscreen.
-- Keep sending input while the app runs in the background.
+- Keep sending input while the app runs in the background. (except for Xbox button, PS button and Switch home button. This is a macOS GCController limitation)
 
 Default face-button mappings follow Nintendo button positions. Available buttons and symbols depend on your controller and macOS.
